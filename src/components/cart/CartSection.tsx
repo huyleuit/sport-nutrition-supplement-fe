@@ -23,7 +23,7 @@ export const CartSection = () => {
   const [orderData, setOrderData] = useState<OrderRequestResType>();
 
   // Order Information
-  const [addressId, setAddressId] = useState<number>(0);
+  const [addressId, setAddressId] = useState<string>("");
   const [address, setAddress] = useState<string>("");
   const [note, setNote] = useState<string>("");
   const [paymentMethod, setPaymentMethod] =
@@ -56,7 +56,7 @@ export const CartSection = () => {
         const result = await cartApiRequests.addOrderContent({
           orderId: orderData?.orderId || 0,
           paymentMethod: paymentMethod,
-          addressId: addressId === 0 ? null : addressId,
+          addressId: addressId === "" ? null : addressId,
           addressDetail: address ? address : null,
           method: shippingMethod,
           note,
@@ -334,7 +334,9 @@ export const CartSection = () => {
                 "lg:ml-auto lg:w-[20rem] xl:ml-0 xl:w-full",
                 "active:!bg-none",
               )}
-              disabled={isOrdering ? !address && addressId === 0 : !isAvailable}
+              disabled={
+                isOrdering ? !address && addressId === "" : !isAvailable
+              }
               onClick={handleOrderButton}
               style={{
                 backgroundImage:

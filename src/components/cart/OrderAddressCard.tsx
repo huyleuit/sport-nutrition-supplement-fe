@@ -5,7 +5,7 @@ import { AddressResType } from "@/schemaValidations/address.schema";
 
 type TProps = {
   address: AddressResType;
-  currentAddressId: number;
+  currentAddressId: string;
 };
 
 export const OrderAddressCard = ({ address, currentAddressId }: TProps) => {
@@ -14,7 +14,7 @@ export const OrderAddressCard = ({ address, currentAddressId }: TProps) => {
     <div
       className={cn(
         "rounded-sm border border-solid p-2",
-        currentAddressId === address.addressId
+        currentAddressId === address.id
           ? "border-[#1250DC] bg-[#007AFF]/20"
           : "border-[#4A4F63]",
       )}
@@ -22,9 +22,7 @@ export const OrderAddressCard = ({ address, currentAddressId }: TProps) => {
       <div
         className={cn(
           "flex w-full flex-col gap-x-[0.5em] text-[1em] font-medium md:flex-row",
-          currentAddressId === address.addressId
-            ? "text-[#1250DC]"
-            : "text-[#333]",
+          currentAddressId === address.id ? "text-[#1250DC]" : "text-[#333]",
         )}
       >
         <div className="line-clamp-1 flex max-w-[20em] flex-row items-center gap-1">
@@ -66,9 +64,7 @@ export const OrderAddressCard = ({ address, currentAddressId }: TProps) => {
       <div
         className={cn(
           "line-clamp-3 flex flex-row items-start gap-1 text-left font-normal md:mt-1",
-          currentAddressId === address.addressId
-            ? "text-black"
-            : "text-[#8C8F8D]",
+          currentAddressId === address.id ? "text-black" : "text-[#8C8F8D]",
         )}
       >
         <svg
@@ -90,7 +86,7 @@ export const OrderAddressCard = ({ address, currentAddressId }: TProps) => {
             d="M19.5 10.5c0 7.142-7.5 11.25-7.5 11.25S4.5 17.642 4.5 10.5a7.5 7.5 0 1 1 15 0Z"
           />
         </svg>
-        {address.addressDetail}
+        {address.location}
       </div>
     </div>
   );

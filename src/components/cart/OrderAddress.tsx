@@ -11,8 +11,8 @@ import addressIcon from "/public/address-icon.svg";
 import profile from "/public/profile.svg";
 
 type TProps = {
-  addressId: number;
-  setAddressId: Dispatch<SetStateAction<number>>;
+  addressId: string;
+  setAddressId: Dispatch<SetStateAction<string>>;
   addressDetail: string;
   setAddressDetail: Dispatch<SetStateAction<string>>;
   note: string;
@@ -107,10 +107,7 @@ export const OrderAddress = ({
       <div className="mt-1 w-full bg-white p-4 lg:rounded-[0.75rem]">
         <div className="my-4 flex flex-col gap-2">
           {data.map((item) => (
-            <button
-              key={item.addressId}
-              onClick={() => setAddressId(item.addressId)}
-            >
+            <button key={item.id} onClick={() => setAddressId(item.id)}>
               <OrderAddressCard address={item} currentAddressId={addressId} />
             </button>
           ))}
