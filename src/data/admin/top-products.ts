@@ -1,0 +1,42 @@
+export const topProducts = [
+  {
+    id: 1,
+    name: "Whey Protein Isolate",
+    image: "/product-banners/banner-1.webp",
+    sold: 234,
+    revenue: "58,500,000",
+    stock: 45,
+  },
+  {
+    id: 2,
+    name: "Mass Gainer 5kg",
+    image: "/product-banners/banner-2.webp",
+    sold: 189,
+    revenue: "47,250,000",
+    stock: 32,
+  },
+  {
+    id: 3,
+    name: "Pre-Workout Extreme",
+    image: "/product-banners/banner-3.webp",
+    sold: 156,
+    revenue: "31,200,000",
+    stock: 67,
+  },
+  {
+    id: 4,
+    name: "BCAA Energy",
+    image: "/product-banners/licious-gainer-banner.webp",
+    sold: 134,
+    revenue: "26,800,000",
+    stock: 89,
+  },
+  {
+    id: 5,
+    name: "Creatine Monohydrate",
+    image: "/product-banners/mega-mass-banner.webp",
+    sold: 112,
+    revenue: "22,400,000",
+    stock: 54,
+  },
+];

@@ -1,0 +1,42 @@
+export const recentOrders = [
+  {
+    id: "1234",
+    customer: "Nguyễn Văn A",
+    date: "13/10/2024",
+    total: "1,250,000",
+    status: "PENDING",
+    statusText: "Chờ xử lý",
+  },
+  {
+    id: "1235",
+    customer: "Trần Thị B",
+    date: "13/10/2024",
+    total: "2,500,000",
+    status: "SHIPPING",
+    statusText: "Đang giao",
+  },
+  {
+    id: "1236",
+    customer: "Lê Văn C",
+    date: "12/10/2024",
+    total: "890,000",
+    status: "SUCCESS",
+    statusText: "Hoàn thành",
+  },
+  {
+    id: "1237",
+    customer: "Phạm Thị D",
+    date: "12/10/2024",
+    total: "1,800,000",
+    status: "PENDING",
+    statusText: "Chờ xử lý",
+  },
+  {
+    id: "1238",
+    customer: "Hoàng Văn E",
+    date: "11/10/2024",
+    total: "3,200,000",
+    status: "CANCELLED",
+    statusText: "Đã hủy",
+  },
+];
