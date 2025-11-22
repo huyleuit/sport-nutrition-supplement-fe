@@ -1,30 +1,195 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# Sport Nutrition Supplement - Frontend
 
-## Getting Started
+Ứng dụng web frontend cho hệ thống bán thực phẩm bổ sung thể thao, được xây dựng với Next.js 14 và TypeScript.
 
-First, run the development server:
+## 📋 Mô tả
+
+Dự án frontend cho website thương mại điện tử chuyên về các sản phẩm thực phẩm bổ sung thể thao như:
+
+- Whey Protein
+- Mass Gainer
+- Pre-workout
+- BCAA/EAA
+- Creatine
+- Vitamin và các sản phẩm bổ sung khác
+
+## 🚀 Công nghệ sử dụng
+
+### Core
+
+- **Next.js 14.2.10** - React framework với App Router
+- **React 18.3.1** - UI library
+- **TypeScript 5.6.2** - Type safety
+
+### UI Libraries
+
+- **Material-UI (MUI) 6.1.1** - Component library
+- **Radix UI** - Headless UI components (Dialog, Dropdown, Toast, etc.)
+- **Tailwind CSS 3.4.11** - Utility-first CSS framework
+- **Lucide React** - Icon library
+- **Font Awesome** - Icon library
+
+### Form & Validation
+
+- **React Hook Form 7.53.1** - Form management
+- **Zod 3.23.8** - Schema validation
+- **@hookform/resolvers** - Form validation resolvers
+
+### State Management & Utilities
+
+- **js-cookie** - Cookie management
+- **class-variance-authority** - Component variants
+- **clsx & tailwind-merge** - Class name utilities
+
+### Development Tools
+
+- **ESLint** - Code linting
+- **Prettier** - Code formatting
+- **TypeScript** - Type checking
+
+## 📦 Cài đặt
+
+### Yêu cầu
+
+- Node.js >= 18.x
+- pnpm >= 10.23.0
+
+### Bước 1: Clone repository
+
+```bash
+git clone <repository-url>
+cd Sport-Nutrition-Supplement-FE
+```
+
+### Bước 2: Cài đặt dependencies
+
+```bash
+pnpm install
+```
+
+### Bước 3: Cấu hình biến môi trường
+
+Tạo file `.env.local` trong thư mục gốc với nội dung:
+
+```env
+NEXT_PUBLIC_API_ENDPOINT=your_api_endpoint
+NEXT_PUBLIC_URL=your_frontend_url
+```
+
+### Bước 4: Chạy ứng dụng
 
 ```bash
 pnpm dev
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+Mở trình duyệt tại [http://localhost:3000](http://localhost:3000) để xem kết quả.
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+## 📜 Scripts có sẵn
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+- `pnpm dev` - Chạy development server
+- `pnpm build` - Build ứng dụng cho production
+- `pnpm start` - Chạy production server
+- `pnpm lint` - Kiểm tra lỗi code với ESLint
 
-## Learn More
+## 📁 Cấu trúc dự án
 
-To learn more about Next.js, take a look at the following resources:
+```
+src/
+├── apiRequests/          # API request functions
+│   ├── address.ts
+│   ├── auth.ts
+│   ├── cart.ts
+│   ├── product.ts
+│   └── user.ts
+├── app/                  # Next.js App Router
+│   ├── (main)/          # Main routes (public)
+│   │   ├── (auth)/      # Authentication pages
+│   │   ├── (document)/  # Document pages
+│   │   ├── danh-muc/    # Category pages
+│   │   ├── gio-hang/    # Cart page
+│   │   ├── nguoi-dung/  # User pages
+│   │   └── san-pham/    # Product pages
+│   ├── admin/           # Admin panel
+│   │   ├── customers/
+│   │   ├── dashboard/
+│   │   ├── orders/
+│   │   ├── products/
+│   │   └── promotions/
+│   └── api/             # API routes
+├── components/           # React components
+│   ├── admin/          # Admin components
+│   ├── cart/           # Cart components
+│   ├── common/         # Common components
+│   ├── footer/         # Footer components
+│   ├── header/         # Header components
+│   ├── home/           # Home page components
+│   ├── product-detail/ # Product detail components
+│   ├── product-list/   # Product list components
+│   └── ui/             # UI components (shadcn/ui)
+├── config.ts           # Environment configuration
+├── data/               # Static data
+├── hooks/              # Custom React hooks
+├── lib/                # Utility libraries
+├── schemaValidations/  # Zod validation schemas
+└── types/              # TypeScript type definitions
+```
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+## 🎨 Tính năng chính
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+### Người dùng
 
-## Deploy on Vercel
+- ✅ Xem danh sách sản phẩm và tìm kiếm
+- ✅ Xem chi tiết sản phẩm
+- ✅ Thêm sản phẩm vào giỏ hàng
+- ✅ Quản lý giỏ hàng
+- ✅ Đăng nhập/Đăng ký
+- ✅ Quản lý thông tin cá nhân
+- ✅ Quản lý địa chỉ giao hàng
+- ✅ Xem lịch sử đơn hàng
+- ✅ Hệ thống đánh giá sản phẩm
 
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
+### Admin
 
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+- ✅ Dashboard quản lý
+- ✅ Quản lý sản phẩm
+- ✅ Quản lý đơn hàng
+- ✅ Quản lý khách hàng
+- ✅ Quản lý khuyến mãi
+
+## 🔧 Cấu hình
+
+### ESLint
+
+Dự án sử dụng ESLint với cấu hình Next.js và TypeScript. Xem file `.eslintrc.json` để biết chi tiết.
+
+### Tailwind CSS
+
+Cấu hình Tailwind CSS được đặt trong `tailwind.config.ts`.
+
+### TypeScript
+
+Cấu hình TypeScript được đặt trong `tsconfig.json`.
+
+## 🚢 Deployment
+
+### Vercel (Khuyến nghị)
+
+Cách dễ nhất để deploy Next.js app là sử dụng [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme).
+
+1. Push code lên GitHub/GitLab
+2. Import project vào Vercel
+3. Cấu hình biến môi trường
+4. Deploy
+
+### Build cho production
+
+```bash
+pnpm build
+pnpm start
+```
+
+## 📝 Lưu ý
+
+- Đảm bảo cấu hình đúng các biến môi trường trước khi chạy
+- Sử dụng pnpm làm package manager (không phải npm hoặc yarn)
+- Kiểm tra lỗi TypeScript và ESLint trước khi commit
