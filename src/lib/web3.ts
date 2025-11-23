@@ -1,5 +1,5 @@
-import { BrowserProvider, Contract, formatUnits } from "ethers";
 import { CONTRACT_CONFIG } from "@/config/contract";
+import { BrowserProvider, Contract, formatUnits } from "ethers";
 
 /**
  * Get token balance for a given address
@@ -14,28 +14,28 @@ export async function getTokenBalance(address: string): Promise<number> {
 
     // Create provider from MetaMask
     const provider = new BrowserProvider(window.ethereum);
-    
+
     // Get the network to ensure we're on the correct chain
     const network = await provider.getNetwork();
     if (Number(network.chainId) !== CONTRACT_CONFIG.chainId) {
       throw new Error(
-        `Please switch to Sepolia testnet (Chain ID: ${CONTRACT_CONFIG.chainId})`
+        `Please switch to Sepolia testnet (Chain ID: ${CONTRACT_CONFIG.chainId})`,
       );
     }
 
     // Create contract instance
     const contract = new Contract(
-      CONTRACT_CONFIG.contracts.loyaltyToken,
+      CONTRACT_CONFIG.contracts.loyaltyToken as string,
       CONTRACT_CONFIG.loyaltyTokenABI,
-      provider
+      provider,
     );
 
     // Get balance (returns BigInt in wei)
     const balanceWei = await contract.balanceOf(address);
-    
+
     // Get decimals to properly format the balance
     const decimals = await contract.decimals();
-    
+
     // Convert from wei to token units
     const balance = parseFloat(formatUnits(balanceWei, decimals));
 
@@ -82,7 +82,7 @@ export async function switchToSepolia(): Promise<void> {
     // This error code indicates that the chain has not been added to MetaMask
     if (switchError.code === 4902) {
       // Add Sepolia network
-      await window.ethereum.request({
+      await window.ethereum!.request({
         method: "wallet_addEthereumChain",
         params: [
           {
@@ -103,4 +103,3 @@ export async function switchToSepolia(): Promise<void> {
     }
   }
 }
-
