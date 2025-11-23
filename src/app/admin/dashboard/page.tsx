@@ -5,6 +5,7 @@ import { RevenueChart } from "@/components/admin/dashboard/RevenueChart";
 import { RecentOrders } from "@/components/admin/dashboard/RecentOrders";
 import { TopProducts } from "@/components/admin/dashboard/TopProducts";
 import { OrderStatusChart } from "@/components/admin/dashboard/OrderStatusChart";
+import { PaymentsList } from "@/components/admin/dashboard/PaymentsList";
 
 export default function AdminDashboardPage() {
   return (
@@ -32,6 +33,11 @@ export default function AdminDashboardPage() {
       <div className="grid w-full gap-6 lg:grid-cols-2">
         <RecentOrders />
         <TopProducts />
+      </div>
+
+      {/* Payments Section */}
+      <div className="w-full">
+        <PaymentsList />
       </div>
     </div>
   );
