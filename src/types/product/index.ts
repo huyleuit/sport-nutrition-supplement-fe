@@ -28,29 +28,36 @@ export type ProductsResType = {
 //   }[];
 // }[];
 
+// export type ProductsMetaType = {
+//   path: string;
+//   current_page: number;
+//   from: number | null;
+//   last_page: number;
+//   links: {
+//     url: string | null;
+//     label: string;
+//     active: boolean;
+//   }[];
+//   per_page: number;
+//   to: number | null;
+//   total: number;
+// };
+
 export type ProductsMetaType = {
-  path: string;
-  current_page: number;
-  from: number | null;
-  last_page: number;
-  links: {
-    url: string | null;
-    label: string;
-    active: boolean;
-  }[];
-  per_page: number;
-  to: number | null;
-  total: number;
+  page: number;
+  perPage: number;
+  totalElements: number;
+  totalPages: number;
 };
 
 export type AllProductsResType = {
   data: ProductsResType;
-  links: {
-    first: string | null;
-    last: string | null;
-    prev: string | null;
-    next: string | null;
-  };
+  // links: {
+  //   first: string | null;
+  //   last: string | null;
+  //   prev: string | null;
+  //   next: string | null;
+  // };
   meta: ProductsMetaType;
 };
 

@@ -2,6 +2,7 @@
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import { useEffect, useState } from "react";
+import { getTokenBalance, isCorrectNetwork, switchToSepolia } from "@/lib/web3";
 
 // Define data types
 interface Transaction {
@@ -102,10 +103,38 @@ export function LoyaltySection() {
       const accounts = await window.ethereum!.request({
         method: "eth_requestAccounts",
       });
-      setAccount(accounts[0]);
-      // TODO: Get token balance from smart contract
-      // Currently using mock data
-      setBalance(1200);
+      const userAccount = accounts[0];
+      setAccount(userAccount);
+
+      // Check if connected to correct network (Sepolia)
+      const isCorrect = await isCorrectNetwork();
+      if (!isCorrect) {
+        const shouldSwitch = window.confirm(
+          "Bạn cần chuyển sang mạng Sepolia testnet để sử dụng tính năng này. Bạn có muốn chuyển đổi không?",
+        );
+        if (shouldSwitch) {
+          await switchToSepolia();
+        } else {
+          setAccount(null);
+          return;
+        }
+      }
+
+      // Get token balance from smart contract
+      try {
+        const tokenBalance = await getTokenBalance(userAccount);
+        setBalance(tokenBalance);
+      } catch (balanceError: any) {
+        console.error("Lỗi khi lấy số dư token:", balanceError);
+        // Set balance to 0 if there's an error (user might not have tokens)
+        setBalance(0);
+        // Only show alert if it's not a network error (already handled above)
+        if (!balanceError.message?.includes("network")) {
+          alert(
+            "Không thể lấy số dư token. Vui lòng kiểm tra kết nối mạng hoặc thử lại sau.",
+          );
+        }
+      }
     } catch (error: any) {
       console.error("Lỗi khi kết nối ví:", error);
       alert("Không thể kết nối với ví. Vui lòng thử lại!");
@@ -120,24 +149,55 @@ export function LoyaltySection() {
     setBalance(0);
   };
 
-  // Listen for account change events
+  // Listen for account change events and refresh balance
   useEffect(() => {
     if (typeof window !== "undefined" && window.ethereum) {
-      window.ethereum.on("accountsChanged", (accounts: string[]) => {
+      const handleAccountsChanged = async (accounts: string[]) => {
         if (accounts.length > 0) {
-          setAccount(accounts[0]);
+          const newAccount = accounts[0];
+          setAccount(newAccount);
+          // Refresh balance when account changes
+          try {
+            const tokenBalance = await getTokenBalance(newAccount);
+            setBalance(tokenBalance);
+          } catch (error) {
+            console.error("Error refreshing balance:", error);
+            setBalance(0);
+          }
         } else {
           disconnectWallet();
         }
-      });
-    }
+      };
 
-    return () => {
-      if (typeof window !== "undefined" && window.ethereum) {
-        window.ethereum.removeAllListeners("accountsChanged");
-      }
-    };
-  }, []);
+      window.ethereum.on("accountsChanged", handleAccountsChanged);
+
+      // Also listen for chain changes to refresh balance
+      const handleChainChanged = async () => {
+        if (account) {
+          try {
+            const isCorrect = await isCorrectNetwork();
+            if (isCorrect) {
+              const tokenBalance = await getTokenBalance(account);
+              setBalance(tokenBalance);
+            } else {
+              setBalance(0);
+            }
+          } catch (error) {
+            console.error("Error refreshing balance on chain change:", error);
+          }
+        }
+      };
+
+      window.ethereum.on("chainChanged", handleChainChanged);
+
+      return () => {
+        if (typeof window !== "undefined" && window.ethereum) {
+          window.ethereum.removeAllListeners("accountsChanged");
+          window.ethereum.removeAllListeners("chainChanged");
+        }
+      };
+    }
+  }, [account]);
 
   // Format wallet address
   const formatAddress = (address: string) => {

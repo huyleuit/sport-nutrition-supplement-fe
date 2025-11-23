@@ -22,14 +22,18 @@ const ProductSection = ({ category }: { category: string }) => {
   const [data, setData] = useState<ProductsResType>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [meta, setMeta] = useState<ProductsMetaType>({
-    current_page: 1,
-    from: null,
-    last_page: 1,
-    links: [],
-    path: "",
-    per_page: 12,
-    to: null,
-    total: 0,
+    // current_page: 1,
+    // from: null,
+    // last_page: 1,
+    // links: [],
+    // path: "",
+    // per_page: 12,
+    // to: null,
+    // total: 0,
+    page: 1,
+    perPage: 12,
+    totalElements: 0,
+    totalPages: 1,
   });
   const [sortOption, setSortOption] = useState<SortOptions>("asc");
 
@@ -249,7 +253,7 @@ const ProductSection = ({ category }: { category: string }) => {
               </div>
               <div className="mt-6 flex justify-center">
                 <CustomPagination
-                  count={meta.last_page}
+                  count={meta.totalPages}
                   currentPage={currentPage}
                   scrollToRef={productsContainerRef}
                   setCurrentPage={setCurrentPage}
