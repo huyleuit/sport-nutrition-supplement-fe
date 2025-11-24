@@ -2,7 +2,15 @@
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import { useEffect, useState } from "react";
-import { getTokenBalance, isCorrectNetwork, switchToSepolia } from "@/lib/web3";
+import {
+  getTokenBalance,
+  isCorrectNetwork,
+  switchToSepolia,
+  redeemReward,
+  getTransactionHistory,
+  clearBalanceCache,
+} from "@/lib/web3";
+import { Web3ErrorBoundary } from "./Web3ErrorBoundary";
 
 // Define data types
 interface Transaction {
@@ -11,6 +19,8 @@ interface Transaction {
   amount: number;
   description: string;
   date: string;
+  txHash?: string;
+  blockNumber?: number;
 }
 
 interface Reward {
@@ -25,29 +35,10 @@ export function LoyaltySection() {
   const [account, setAccount] = useState<string | null>(null);
   const [balance, setBalance] = useState<number>(0);
   const [isConnecting, setIsConnecting] = useState(false);
-  const [transactions, setTransactions] = useState<Transaction[]>([
-    {
-      id: "1",
-      type: "earn",
-      amount: 500,
-      description: "Mua hàng đơn #12345",
-      date: "2024-11-15",
-    },
-    {
-      id: "2",
-      type: "earn",
-      amount: 200,
-      description: "Đánh giá sản phẩm",
-      date: "2024-11-14",
-    },
-    {
-      id: "3",
-      type: "redeem",
-      amount: -300,
-      description: "Đổi voucher giảm giá 10%",
-      date: "2024-11-13",
-    },
-  ]);
+  const [isLoadingBalance, setIsLoadingBalance] = useState(false);
+  const [isRedeeming, setIsRedeeming] = useState<string | null>(null);
+  const [isLoadingHistory, setIsLoadingHistory] = useState(false);
+  const [transactions, setTransactions] = useState<Transaction[]>([]);
 
   const [rewards, _setRewards] = useState<Reward[]>([
     {
@@ -121,8 +112,9 @@ export function LoyaltySection() {
       }
 
       // Get token balance from smart contract
+      setIsLoadingBalance(true);
       try {
-        const tokenBalance = await getTokenBalance(userAccount);
+        const tokenBalance = await getTokenBalance(userAccount, true);
         setBalance(tokenBalance);
       } catch (balanceError: any) {
         console.error("Lỗi khi lấy số dư token:", balanceError);
@@ -134,6 +126,8 @@ export function LoyaltySection() {
             "Không thể lấy số dư token. Vui lòng kiểm tra kết nối mạng hoặc thử lại sau.",
           );
         }
+      } finally {
+        setIsLoadingBalance(false);
       }
     } catch (error: any) {
       console.error("Lỗi khi kết nối ví:", error);
@@ -147,6 +141,31 @@ export function LoyaltySection() {
   const disconnectWallet = () => {
     setAccount(null);
     setBalance(0);
+    setTransactions([]);
+    clearBalanceCache();
+  };
+
+  // Load transaction history from blockchain
+  const loadTransactionHistory = async (userAccount: string) => {
+    setIsLoadingHistory(true);
+    try {
+      const history = await getTransactionHistory(userAccount);
+      const formattedHistory: Transaction[] = history.map((tx) => ({
+        id: tx.txHash,
+        type: tx.type,
+        amount: tx.amount,
+        description: tx.description,
+        date: tx.date,
+        txHash: tx.txHash,
+        blockNumber: tx.blockNumber,
+      }));
+      setTransactions(formattedHistory);
+    } catch (error) {
+      console.error("Error loading transaction history:", error);
+      // Don't show error to user, just log it
+    } finally {
+      setIsLoadingHistory(false);
+    }
   };
 
   // Listen for account change events and refresh balance
@@ -157,12 +176,17 @@ export function LoyaltySection() {
           const newAccount = accounts[0];
           setAccount(newAccount);
           // Refresh balance when account changes
+          setIsLoadingBalance(true);
           try {
-            const tokenBalance = await getTokenBalance(newAccount);
+            const tokenBalance = await getTokenBalance(newAccount, true);
             setBalance(tokenBalance);
+            // Load transaction history
+            await loadTransactionHistory(newAccount);
           } catch (error) {
             console.error("Error refreshing balance:", error);
             setBalance(0);
+          } finally {
+            setIsLoadingBalance(false);
           }
         } else {
           disconnectWallet();
@@ -174,16 +198,21 @@ export function LoyaltySection() {
       // Also listen for chain changes to refresh balance
       const handleChainChanged = async () => {
         if (account) {
+          setIsLoadingBalance(true);
           try {
             const isCorrect = await isCorrectNetwork();
             if (isCorrect) {
-              const tokenBalance = await getTokenBalance(account);
+              const tokenBalance = await getTokenBalance(account, true);
               setBalance(tokenBalance);
+              // Reload transaction history
+              await loadTransactionHistory(account);
             } else {
               setBalance(0);
             }
           } catch (error) {
             console.error("Error refreshing balance on chain change:", error);
+          } finally {
+            setIsLoadingBalance(false);
           }
         }
       };
@@ -199,13 +228,20 @@ export function LoyaltySection() {
     }
   }, [account]);
 
+  // Load transaction history when account is connected
+  useEffect(() => {
+    if (account) {
+      loadTransactionHistory(account);
+    }
+  }, [account]);
+
   // Format wallet address
   const formatAddress = (address: string) => {
     return `${address.substring(0, 6)}...${address.substring(address.length - 4)}`;
   };
 
   // Redeem reward
-  const handleRedeem = (reward: Reward) => {
+  const handleRedeem = async (reward: Reward) => {
     if (!account) {
       alert("Vui lòng kết nối ví trước khi đổi thưởng!");
       return;
@@ -216,27 +252,70 @@ export function LoyaltySection() {
       return;
     }
 
-    // TODO: Call smart contract to process reward redemption
     const confirmRedeem = window.confirm(
       `Bạn có chắc muốn đổi ${reward.points} điểm để nhận "${reward.title}"?`,
     );
 
-    if (confirmRedeem) {
-      setBalance(balance - reward.points);
-      const newTransaction: Transaction = {
-        id: Date.now().toString(),
-        type: "redeem",
-        amount: -reward.points,
-        description: `Đổi ${reward.title}`,
-        date: new Date().toISOString().split("T")[0],
-      };
-      setTransactions([newTransaction, ...transactions]);
-      alert("Đổi thưởng thành công!");
+    if (!confirmRedeem) {
+      return;
+    }
+
+    setIsRedeeming(reward.id);
+    try {
+      // Check network first
+      const isCorrect = await isCorrectNetwork();
+      if (!isCorrect) {
+        const shouldSwitch = window.confirm(
+          "Bạn cần chuyển sang mạng Sepolia testnet để đổi thưởng. Bạn có muốn chuyển đổi không?",
+        );
+        if (shouldSwitch) {
+          await switchToSepolia();
+        } else {
+          setIsRedeeming(null);
+          return;
+        }
+      }
+
+      // Call smart contract to redeem reward
+      const rewardId = parseInt(reward.id);
+      const txHash = await redeemReward(rewardId);
+
+      // Refresh balance after successful redemption
+      setIsLoadingBalance(true);
+      try {
+        const newBalance = await getTokenBalance(account, true);
+        setBalance(newBalance);
+      } catch (error) {
+        console.error("Error refreshing balance:", error);
+      } finally {
+        setIsLoadingBalance(false);
+      }
+
+      // Reload transaction history
+      await loadTransactionHistory(account);
+
+      alert(
+        `Đổi thưởng thành công! Transaction hash: ${txHash.substring(0, 10)}...`,
+      );
+    } catch (error: any) {
+      console.error("Error redeeming reward:", error);
+      let errorMessage = "Không thể đổi thưởng. Vui lòng thử lại!";
+      if (error.message?.includes("rejected")) {
+        errorMessage = "Giao dịch đã bị hủy bởi người dùng.";
+      } else if (error.message?.includes("Insufficient")) {
+        errorMessage = "Số điểm không đủ để đổi phần thưởng này!";
+      } else if (error.message) {
+        errorMessage = error.message;
+      }
+      alert(errorMessage);
+    } finally {
+      setIsRedeeming(null);
     }
   };
 
   return (
-    <div className={cn("w-full space-y-6")}>
+    <Web3ErrorBoundary>
+      <div className={cn("w-full space-y-6")}>
       {/* Header Section - Wallet Information */}
       <div
         className={cn(
@@ -339,15 +418,45 @@ export function LoyaltySection() {
                 <p className={cn("text-[0.8em] text-white/80")}>
                   Số điểm hiện có
                 </p>
-                <p
-                  className={cn(
-                    "text-[2.5em] font-bold text-white",
-                    "flex items-center gap-2",
-                  )}
-                >
-                  {balance.toLocaleString()}
-                  <span className={cn("text-[0.4em] text-white/80")}>điểm</span>
-                </p>
+                {isLoadingBalance ? (
+                  <div className={cn("flex items-center gap-2")}>
+                    <svg
+                      className={cn("h-[1.5em] w-[1.5em] animate-spin text-white")}
+                      xmlns="http://www.w3.org/2000/svg"
+                      fill="none"
+                      viewBox="0 0 24 24"
+                    >
+                      <circle
+                        className="opacity-25"
+                        cx="12"
+                        cy="12"
+                        r="10"
+                        stroke="currentColor"
+                        strokeWidth="4"
+                      ></circle>
+                      <path
+                        className="opacity-75"
+                        fill="currentColor"
+                        d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"
+                      ></path>
+                    </svg>
+                    <span className={cn("text-[1em] text-white/80")}>
+                      Đang tải...
+                    </span>
+                  </div>
+                ) : (
+                  <p
+                    className={cn(
+                      "text-[2.5em] font-bold text-white",
+                      "flex items-center gap-2",
+                    )}
+                  >
+                    {balance.toLocaleString()}
+                    <span className={cn("text-[0.4em] text-white/80")}>
+                      điểm
+                    </span>
+                  </p>
+                )}
               </div>
             </div>
           )}
@@ -411,7 +520,11 @@ export function LoyaltySection() {
                     </span>
                     <Button
                       onClick={() => handleRedeem(reward)}
-                      disabled={!account || balance < reward.points}
+                      disabled={
+                        !account ||
+                        balance < reward.points ||
+                        isRedeeming === reward.id
+                      }
                       size="sm"
                       className={cn(
                         "bg-gradient-to-r from-purple-600 to-blue-600",
@@ -419,7 +532,33 @@ export function LoyaltySection() {
                         "disabled:from-gray-300 disabled:to-gray-400",
                       )}
                     >
-                      Đổi ngay
+                      {isRedeeming === reward.id ? (
+                        <span className={cn("flex items-center gap-2")}>
+                          <svg
+                            className={cn("h-[1em] w-[1em] animate-spin")}
+                            xmlns="http://www.w3.org/2000/svg"
+                            fill="none"
+                            viewBox="0 0 24 24"
+                          >
+                            <circle
+                              className="opacity-25"
+                              cx="12"
+                              cy="12"
+                              r="10"
+                              stroke="currentColor"
+                              strokeWidth="4"
+                            ></circle>
+                            <path
+                              className="opacity-75"
+                              fill="currentColor"
+                              d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"
+                            ></path>
+                          </svg>
+                          Đang xử lý...
+                        </span>
+                      ) : (
+                        "Đổi ngay"
+                      )}
                     </Button>
                   </div>
                 </div>
@@ -431,10 +570,74 @@ export function LoyaltySection() {
 
       {/* Transaction History */}
       <div className={cn("rounded-[0.625em] bg-white p-[1.5em]")}>
-        <h3 className={cn("mb-[1em] text-[1.25em] font-bold text-gray-800")}>
-          Lịch sử giao dịch
-        </h3>
-        {transactions.length === 0 ? (
+        <div
+          className={cn("mb-[1em] flex items-center justify-between")}
+        >
+          <h3 className={cn("text-[1.25em] font-bold text-gray-800")}>
+            Lịch sử giao dịch
+          </h3>
+          {account && (
+            <Button
+              onClick={() => loadTransactionHistory(account)}
+              disabled={isLoadingHistory}
+              size="sm"
+              variant="outline"
+              className={cn("text-[0.8em]")}
+            >
+              {isLoadingHistory ? (
+                <span className={cn("flex items-center gap-2")}>
+                  <svg
+                    className={cn("h-[1em] w-[1em] animate-spin")}
+                    xmlns="http://www.w3.org/2000/svg"
+                    fill="none"
+                    viewBox="0 0 24 24"
+                  >
+                    <circle
+                      className="opacity-25"
+                      cx="12"
+                      cy="12"
+                      r="10"
+                      stroke="currentColor"
+                      strokeWidth="4"
+                    ></circle>
+                    <path
+                      className="opacity-75"
+                      fill="currentColor"
+                      d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"
+                    ></path>
+                  </svg>
+                  Đang tải...
+                </span>
+              ) : (
+                "Làm mới"
+              )}
+            </Button>
+          )}
+        </div>
+        {isLoadingHistory && transactions.length === 0 ? (
+          <div className={cn("flex items-center justify-center py-8")}>
+            <svg
+              className={cn("h-[2em] w-[2em] animate-spin text-gray-400")}
+              xmlns="http://www.w3.org/2000/svg"
+              fill="none"
+              viewBox="0 0 24 24"
+            >
+              <circle
+                className="opacity-25"
+                cx="12"
+                cy="12"
+                r="10"
+                stroke="currentColor"
+                strokeWidth="4"
+              ></circle>
+              <path
+                className="opacity-75"
+                fill="currentColor"
+                d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"
+              ></path>
+            </svg>
+          </div>
+        ) : transactions.length === 0 ? (
           <p className={cn("text-center text-[0.9em] text-gray-500")}>
             Chưa có giao dịch nào
           </p>
@@ -568,6 +771,7 @@ export function LoyaltySection() {
           </li>
         </ul>
       </div>
-    </div>
+      </div>
+    </Web3ErrorBoundary>
   );
 }

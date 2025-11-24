@@ -80,9 +80,71 @@ pnpm dev
 
 ## Các bước tiếp theo (TODO)
 
-- [ ] Implement `handleRedeem()` để gọi smart contract khi đổi thưởng
-- [ ] Thêm loading state khi đang fetch balance
-- [ ] Thêm error boundary cho Web3 errors
-- [ ] Cache balance để giảm số lần gọi contract
-- [ ] Thêm transaction history từ blockchain events
+- [x] Implement `handleRedeem()` để gọi smart contract khi đổi thưởng
+- [x] Thêm loading state khi đang fetch balance
+- [x] Thêm error boundary cho Web3 errors
+- [x] Cache balance để giảm số lần gọi contract
+- [x] Thêm transaction history từ blockchain events
+
+## Tính năng mới đã implement
+
+### ✅ **Implement handleRedeem() với smart contract**
+- Gọi hàm `redeemReward()` từ LoyaltyManager contract
+- Tự động approve tokens trước khi redeem
+- Kiểm tra network và chuyển sang Sepolia nếu cần
+- Xử lý lỗi đầy đủ (rejected transactions, insufficient balance, etc.)
+- Refresh balance và transaction history sau khi redeem thành công
+
+### ✅ **Loading states**
+- Loading state khi fetch balance (`isLoadingBalance`)
+- Loading state khi đang redeem (`isRedeeming`)
+- Loading state khi load transaction history (`isLoadingHistory`)
+- Hiển thị spinner và disable buttons khi đang xử lý
+
+### ✅ **Error Boundary cho Web3**
+- Component `Web3ErrorBoundary` để bắt và hiển thị lỗi Web3
+- Hiển thị thông báo lỗi thân thiện với người dùng
+- Hướng dẫn khắc phục lỗi
+- Nút "Thử lại" để reset error state
+
+### ✅ **Cache balance**
+- Cache balance trong 30 giây để giảm số lần gọi contract
+- Tự động clear cache khi có transaction mới
+- Hàm `clearBalanceCache()` để force refresh khi cần
+
+### ✅ **Transaction history từ blockchain**
+- Query Transfer events để lấy lịch sử nhận điểm (earn)
+- Query RewardRedeemed events để lấy lịch sử đổi thưởng (redeem)
+- Tự động load history khi connect wallet
+- Nút "Làm mới" để reload history
+- Hiển thị transaction hash và block number
+
+## Các file đã cập nhật
+
+### 1. `src/config/contract.ts`
+- ✅ Thêm `loyaltyManagerABI` với các hàm: `redeemReward`, `getRewardCost`, `isCustomerRegistered`
+- ✅ Thêm `approve` và `allowance` vào `loyaltyTokenABI`
+- ✅ Thêm `Transfer` event vào `loyaltyTokenABI` để query events
+- ✅ Thêm default contract addresses
+
+### 2. `src/lib/web3.ts`
+- ✅ Thêm `approveTokens(amount)`: Approve tokens cho LoyaltyManager
+- ✅ Thêm `redeemReward(rewardId)`: Gọi smart contract để redeem reward
+- ✅ Thêm `getTransactionHistory(address)`: Lấy lịch sử giao dịch từ blockchain events
+- ✅ Thêm cache cho `getTokenBalance()` với thời gian cache 30 giây
+- ✅ Thêm `clearBalanceCache()`: Clear cache khi cần
+
+### 3. `src/components/loyalty/Web3ErrorBoundary.tsx` (MỚI)
+- ✅ Error boundary component để bắt lỗi Web3
+- ✅ Hiển thị thông báo lỗi và hướng dẫn khắc phục
+- ✅ Nút "Thử lại" để reset error state
+
+### 4. `src/components/loyalty/LoyaltySection.tsx`
+- ✅ Implement `handleRedeem()` với smart contract calls
+- ✅ Thêm loading states: `isLoadingBalance`, `isRedeeming`, `isLoadingHistory`
+- ✅ Wrap component với `Web3ErrorBoundary`
+- ✅ Load transaction history từ blockchain khi connect wallet
+- ✅ Nút "Làm mới" để reload transaction history
+- ✅ Hiển thị loading spinner khi đang fetch data
+- ✅ Tự động refresh balance sau khi redeem thành công
 
