@@ -6,7 +6,7 @@ export const metadata: Metadata = {
   title: "Chính sách vận chuyển",
 };
 
-export default function page() {
+export default function Page() {
   return (
     <div
       className={cn(

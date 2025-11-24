@@ -10,7 +10,7 @@ export const metadata: Metadata = {
     "Đăng ký để khám phá và mua sắm các sản phẩm dinh dưỡng thể thao chất lượng cao đến từ 4HProtein.",
 };
 
-export default function page() {
+export default function Page() {
   return (
     <div className="w-full bg-white py-[3.5rem]">
       <div className="mx-auto flex w-[25rem] flex-col">
