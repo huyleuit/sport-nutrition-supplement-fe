@@ -9,9 +9,9 @@ import { HeaderUser } from "./HeaderUser";
 import SearchInput from "./SearchInput";
 import { UserAndCart } from "./UserAndCart";
 import logo from "/public/logo.png";
+import loyaltyIcon from "/public/loyalty-icon.svg";
 import phoneIcon from "/public/phone-icon.svg";
 import saleIcon from "/public/sale-icon.svg";
-import saleTag from "/public/sale-tag.svg";
 import trackingIcon from "/public/tracking-icon.svg";
 
 export const Header = () => {
@@ -80,11 +80,11 @@ export const Header = () => {
               <span>Tra cứu đơn hàng</span>
             </Link>
             <Link
-              href={`/danh-muc/${convertSlugUrl(categories[10])}-10`}
+              href="/nguoi-dung/khach-hang-than-thiet"
               className="flex flex-row items-center"
             >
-              <Image src={saleTag} alt="" className="size-6" />
-              <span>Xả kho hàng</span>
+              <Image src={loyaltyIcon} alt="" className="size-6" />
+              <span>Khách hàng thân thiết</span>
             </Link>
           </div>
         </div>
