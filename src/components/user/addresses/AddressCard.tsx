@@ -35,11 +35,11 @@ const AddressCard = ({ address }: TProps) => {
       <div className="grow">
         <div className="flex w-full flex-col gap-x-[1em] text-[1em] font-medium text-[#333] md:flex-row">
           <div className="line-clamp-1 max-w-[20em]">
-            {user ? user.name : ""}
+            {user ? user.fullName : ""}
           </div>
           <div className="hidden h-[1.5em] w-px bg-[#333] md:block"></div>
           <div className="line-clamp-1 max-w-[20em]">
-            {user ? formatPhoneNumber(user.phone) : ""}
+            {user ? formatPhoneNumber(user.phoneNumber) : ""}
           </div>
         </div>
         <div className="line-clamp-3 font-normal text-[#8C8F8D]">

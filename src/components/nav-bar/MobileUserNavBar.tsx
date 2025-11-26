@@ -22,20 +22,20 @@ export const MobileUserNavBar = () => {
         <Avatar
           className={cn("size-9")}
           style={{
-            backgroundColor: `${stringToColor(user?.name)}`,
+            backgroundColor: `${stringToColor(user?.fullName)}`,
           }}
         >
           <AvatarFallback
             className={cn("text-base leading-none")}
             style={{
-              color: `${getContrastingColor(stringToColor(user?.name))}`,
+              color: `${getContrastingColor(stringToColor(user?.fullName))}`,
             }}
           >
-            {`${getInitials(user?.name ?? "undefined undefined")}`}
+            {`${getInitials(user?.fullName ?? "undefined undefined")}`}
           </AvatarFallback>
         </Avatar>
         <div className="line-clamp-1 shrink-0 text-center text-lg font-semibold capitalize leading-none text-white">
-          {user?.name.split(" ").slice(-2).join(" ")}
+          {user?.fullName?.split(" ").slice(-2).join(" ")}
         </div>
       </Link>
     );

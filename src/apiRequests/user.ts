@@ -1,8 +1,8 @@
 import http from "@/lib/http";
-import { ProfileResType } from "@/schemaValidations/account.schema";
+import { TUser } from "@/types/user";
 
 const userApiRequest = {
-  profile: () => http.get<ProfileResType>("/user/info"),
+  profile: () => http.get<TUser>("/user/info"),
 };
 
 export default userApiRequest;

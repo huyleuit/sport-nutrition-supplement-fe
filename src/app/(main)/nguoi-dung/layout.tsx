@@ -81,7 +81,7 @@ export default function UserLayout({
     return {
       bgColor: stringToColor(name),
       textColor: getContrastingColor(stringToColor(name)),
-      children: getInitials(user?.name ?? "undefined undefined"),
+      children: getInitials(user?.fullName ?? "undefined undefined"),
     };
   };
 
@@ -159,14 +159,14 @@ export default function UserLayout({
               <Avatar
                 className={cn("size-[4em]")}
                 style={{
-                  backgroundColor: `${stringAvatar(user?.name).bgColor}`,
+                  backgroundColor: `${stringAvatar(user?.fullName).bgColor}`,
                 }}
               >
                 <AvatarFallback
                   className={cn("text-[1.375em]")}
-                  style={{ color: `${stringAvatar(user?.name).textColor}` }}
+                  style={{ color: `${stringAvatar(user?.fullName).textColor}` }}
                 >
-                  {stringAvatar(user?.name).children}
+                  {stringAvatar(user?.fullName).children}
                 </AvatarFallback>
               </Avatar>
               <p
@@ -174,10 +174,10 @@ export default function UserLayout({
                   "mb-[0.25em] mt-[0.375em] text-[0.9375em] capitalize leading-[1.21] text-white",
                 )}
               >
-                {user?.name}
+                {user?.fullName}
               </p>
               <p className={cn("text-[0.875em] leading-[1.21] text-white")}>
-                {user?.phone}
+                {user?.phoneNumber}
               </p>
             </div>
             <div
