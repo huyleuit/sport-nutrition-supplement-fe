@@ -1,5 +1,4 @@
 import envConfig from "@/config";
-import Cookies from "js-cookie";
 import { redirect } from "next/navigation";
 import { isTokenValid } from "./jwt";
 
@@ -70,17 +69,27 @@ const request = async <Response>(
           Accept: "application/json",
         };
   if (isClient()) {
-    const sessionToken = Cookies.get("sessionToken");
+    const sessionToken = localStorage.getItem("sessionToken");
+    console.log(`🌐 API Request: ${method} ${url}`, {
+      hasToken: !!sessionToken,
+      tokenLength: sessionToken?.length,
+    });
+
     if (sessionToken) {
       if (isTokenValid(sessionToken)) {
         baseHeaders.Authorization = `Bearer ${sessionToken}`;
+        console.log("✅ Authorization header added");
       } else {
-        console.warn("Token đã hết hạn, đang đăng xuất...");
+        console.warn("⚠️ Token đã hết hạn, đang đăng xuất...");
+        localStorage.removeItem("sessionToken");
+        localStorage.removeItem("tokenExpires");
         localStorage.removeItem("user");
         window.dispatchEvent(new CustomEvent("auth:logout"));
         window.location.href = "/dang-nhap";
         throw new Error("Token đã hết hạn");
       }
+    } else {
+      console.warn("⚠️ No sessionToken in localStorage");
     }
   }
 
@@ -126,6 +135,8 @@ const request = async <Response>(
           } catch (error) {
             console.error("Logout error:", error);
           } finally {
+            localStorage.removeItem("sessionToken");
+            localStorage.removeItem("tokenExpires");
             localStorage.removeItem("user");
             window.dispatchEvent(new CustomEvent("auth:logout"));
             clientLogoutRequest = null;

@@ -7,7 +7,6 @@ import {
   RegisterBodyType,
   RegisterResType,
 } from "@/schemaValidations/auth.schema";
-import Cookies from "js-cookie";
 
 const authApiRequest = {
   login: (body: LoginBodyType) => http.post<LoginResType>("/auth/login", body),
@@ -19,15 +18,11 @@ const authApiRequest = {
     const expiresAt = getTokenExpiration(token);
 
     if (typeof window !== "undefined") {
-      const expires = expiresAt
-        ? expiresAt
-        : new Date(Date.now() + 7 * 24 * 60 * 60 * 1000);
-      Cookies.set("sessionToken", token, {
-        expires,
-        path: "/",
-        sameSite: "lax",
-        secure: true,
-      });
+      localStorage.setItem("sessionToken", token);
+      if (expiresAt) {
+        localStorage.setItem("tokenExpires", expiresAt.toISOString());
+      }
+      console.log("✅ Token saved to localStorage");
     }
 
     return http.post(
@@ -38,7 +33,9 @@ const authApiRequest = {
   },
   logout: () => {
     if (typeof window !== "undefined") {
-      Cookies.remove("sessionToken");
+      localStorage.removeItem("sessionToken");
+      localStorage.removeItem("tokenExpires");
+      console.log("✅ Token removed from localStorage");
     }
     return http.delete("/api/auth", { baseUrl: "" });
   },
