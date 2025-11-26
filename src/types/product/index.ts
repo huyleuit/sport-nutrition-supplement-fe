@@ -78,21 +78,29 @@ export type TopDealsResType = {
 }[];
 
 export type ProductDetailResType = {
-  productId: number;
+  // productId: number;
+  id: string;
   productName: string;
   price: number;
-  sale: number;
-  priceAfterSale: number;
-  description: string;
-  shortDescription: string[];
-  categoryId: number;
+  categoryId: string;
   brandId: number;
-  images: string[];
-  variants: {
-    variantId: number;
-    variantName: string;
-    stockQuantity: number;
+  description: string;
+  attributes: {
+    id: string;
+    attributeName: string;
+    attributeValue: string;
   }[];
+  images: {
+    id: string;
+    imgUrl: string;
+  }[];
+  // sale: number;
+  // priceAfterSale: number;
+  // variants: {
+  //   variantId: number;
+  //   variantName: string;
+  //   stockQuantity: number;
+  // }[];
 };
 
 export type ProductVariantType = {

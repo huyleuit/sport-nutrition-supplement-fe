@@ -22,7 +22,6 @@ const authApiRequest = {
       if (expiresAt) {
         localStorage.setItem("tokenExpires", expiresAt.toISOString());
       }
-      console.log("✅ Token saved to localStorage");
     }
 
     return http.post(
@@ -35,7 +34,6 @@ const authApiRequest = {
     if (typeof window !== "undefined") {
       localStorage.removeItem("sessionToken");
       localStorage.removeItem("tokenExpires");
-      console.log("✅ Token removed from localStorage");
     }
     return http.delete("/api/auth", { baseUrl: "" });
   },

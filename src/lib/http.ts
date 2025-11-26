@@ -52,7 +52,7 @@ const request = async <Response>(
   method: "GET" | "POST" | "PUT" | "DELETE" | "PATCH",
   url: string,
   options?: CustomOptions | undefined,
-) => {
+): Promise<{ status: number; payload: Response }> => {
   let body: FormData | string | undefined = undefined;
   if (options?.body instanceof FormData) {
     body = options.body;
@@ -70,15 +70,10 @@ const request = async <Response>(
         };
   if (isClient()) {
     const sessionToken = localStorage.getItem("sessionToken");
-    console.log(`🌐 API Request: ${method} ${url}`, {
-      hasToken: !!sessionToken,
-      tokenLength: sessionToken?.length,
-    });
 
     if (sessionToken) {
       if (isTokenValid(sessionToken)) {
         baseHeaders.Authorization = `Bearer ${sessionToken}`;
-        console.log("✅ Authorization header added");
       } else {
         console.warn("⚠️ Token đã hết hạn, đang đăng xuất...");
         localStorage.removeItem("sessionToken");
@@ -143,6 +138,7 @@ const request = async <Response>(
             window.location.href = "/dang-nhap";
           }
         }
+        throw new HttpError(data);
       } else {
         redirect("/dang-nhap");
       }

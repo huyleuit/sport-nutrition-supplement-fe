@@ -22,9 +22,7 @@ export type CartProductType = {
 export type CartProductsType = CartProductType[];
 
 export type AddProductToCartBodyType = {
-  productId: number;
-  variantId: number;
-  comboId: number | null;
+  variantId: string;
   quantity: number;
 };
 

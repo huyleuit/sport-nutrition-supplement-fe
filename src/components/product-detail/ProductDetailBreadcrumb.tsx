@@ -9,16 +9,13 @@ import {
 import { categories, productCategories } from "@/data/category";
 import { convertSlugUrl } from "@/lib/utils";
 import { TParamsCategory } from "@/types/category";
-import { useRouter } from "next/navigation";
 
 type TProps = {
-  categoryId: number;
+  categoryId: string;
   name: string;
 };
 
 export const ProductDetailBreadcrumb = ({ categoryId, name }: TProps) => {
-  const router = useRouter();
-
   const findParentCategory = (
     categoryId: string,
     categories: TParamsCategory[],
@@ -60,15 +57,33 @@ export const ProductDetailBreadcrumb = ({ categoryId, name }: TProps) => {
     return null;
   };
 
-  if (findCategoryById(categoryId.toString(), productCategories) === null) {
-    router.push("/not-found");
-    return null;
-  }
-
+  const currentCategory = findCategoryById(
+    categoryId.toString(),
+    productCategories,
+  );
   const parentCategory = findParentCategory(
     categoryId.toString(),
     productCategories,
   );
+
+  // Nếu không tìm thấy category trong data, vẫn hiển thị breadcrumb cơ bản
+  if (!currentCategory) {
+    console.warn("⚠️ Category not found in local data:", categoryId);
+    return (
+      <Breadcrumb className="px-[0.625rem]">
+        <BreadcrumbList>
+          <BreadcrumbItem>
+            <BreadcrumbLink href="/">Trang chủ</BreadcrumbLink>
+          </BreadcrumbItem>
+          <BreadcrumbSeparator />
+          <BreadcrumbItem className="line-clamp-1 text-black">
+            {name}
+          </BreadcrumbItem>
+        </BreadcrumbList>
+      </Breadcrumb>
+    );
+  }
+
   return (
     <Breadcrumb className="px-[0.625rem]">
       <BreadcrumbList>
@@ -90,10 +105,7 @@ export const ProductDetailBreadcrumb = ({ categoryId, name }: TProps) => {
               <BreadcrumbLink
                 href={`/danh-muc/${convertSlugUrl(categories[categoryId as unknown as keyof typeof categories])}-${categoryId}`}
               >
-                {
-                  findCategoryById(categoryId.toString(), productCategories)
-                    ?.label
-                }
+                {currentCategory?.label}
               </BreadcrumbLink>
             </BreadcrumbItem>
             <BreadcrumbSeparator />
@@ -108,10 +120,7 @@ export const ProductDetailBreadcrumb = ({ categoryId, name }: TProps) => {
               <BreadcrumbLink
                 href={`/danh-muc/${convertSlugUrl(categories[categoryId as unknown as keyof typeof categories])}-${categoryId}`}
               >
-                {
-                  findCategoryById(categoryId.toString(), productCategories)
-                    ?.label
-                }
+                {currentCategory?.label}
               </BreadcrumbLink>
             </BreadcrumbItem>
             <BreadcrumbSeparator />
