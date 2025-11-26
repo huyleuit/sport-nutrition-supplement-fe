@@ -15,6 +15,12 @@ const nextConfig = {
         port: "",
         pathname: "/**",
       },
+      {
+        protocol: "https",
+        hostname: "ecomcloudoss.blob.core.windows.net",
+        port: "",
+        pathname: "/**",
+      },
     ],
   },
 };

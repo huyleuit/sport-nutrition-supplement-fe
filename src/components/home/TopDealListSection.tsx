@@ -25,7 +25,7 @@ const TopDealListSection = () => {
     <CustomCarousel>
       {data.map((product, index) => (
         <CarouselItem
-          key={product.productId}
+          key={product.id}
           className="flex basis-full justify-center xs:basis-1/2 ml:basis-1/3"
         >
           <HomeProductCard index={index} product={product} />
