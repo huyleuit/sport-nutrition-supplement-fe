@@ -12,8 +12,8 @@ import { ProductImages } from "./ProductImages";
 import giftIcon from "/public/gift-icon.svg";
 
 type TProps = {
-  id: number;
-  image: string[];
+  id: string;
+  images: string[];
   name: string;
   brandId: number;
   rating: number;
@@ -22,16 +22,22 @@ type TProps = {
   discount: number;
   promotionInformation: string[];
   variants: {
-    variantId: number;
+    id: string;
     variantName: string;
-    stockQuantity: number;
+    productId: string;
+    quantity: number;
+    imgUrl: string;
   }[];
-  shortDescription: string[];
+  attributes: {
+    id: string;
+    attributeName: string;
+    attributeValue: string;
+  }[];
 };
 
 export const ProductOverview = ({
   id,
-  image,
+  images,
   name,
   brandId,
   rating,
@@ -40,12 +46,13 @@ export const ProductOverview = ({
   discount,
   promotionInformation,
   variants,
-  shortDescription,
+  attributes,
 }: TProps) => {
   const { toast } = useToast();
   const [quantity, setQuantity] = useState(1);
   const [isLoading, setIsLoading] = useState(false);
   const [currentVariant, setCurrentVariant] = useState(variants[0]);
+  const stockQuantity = currentVariant.quantity;
 
   const handleMinusButton = () => {
     if (quantity === 1) return;
@@ -58,12 +65,12 @@ export const ProductOverview = ({
   };
 
   useEffect(() => {
-    if (currentVariant.stockQuantity === 0) {
+    if (stockQuantity === 0) {
       setQuantity(0);
     } else if (quantity < 1) {
       setQuantity(1);
-    } else if (quantity > currentVariant.stockQuantity) {
-      setQuantity(currentVariant.stockQuantity);
+    } else if (quantity > stockQuantity) {
+      setQuantity(stockQuantity);
     }
     if (quantity > 999) {
       setQuantity(999);
@@ -74,9 +81,7 @@ export const ProductOverview = ({
     setIsLoading(true);
     try {
       await cartApiRequests.addProductToCart({
-        productId: id,
-        variantId: currentVariant.variantId,
-        comboId: null,
+        variantId: currentVariant.id,
         quantity: quantity,
       });
 
@@ -105,7 +110,7 @@ export const ProductOverview = ({
       <CustomLoadingAnimation isLoading={isLoading} />
 
       {/*Product Image*/}
-      <ProductImages images={image} />
+      <ProductImages images={images} />
       {/*Product Information*/}
       <div
         className={cn("w-full overflow-hidden lg:w-[32.5rem] xl:w-[42.5rem]")}
@@ -217,21 +222,21 @@ export const ProductOverview = ({
           </div>
           <div className={cn("flex grow flex-wrap gap-2")}>
             {variants.map((variant, index) => (
-              <div key={variant.variantId}>
+              <div key={variant.id}>
                 <input
-                  id={variant.variantId.toString()}
+                  id={variant.id.toString()}
                   name="variant"
                   type="radio"
-                  value={variant.variantId.toString()}
+                  value={variant.id.toString()}
                   defaultChecked={index === 0}
                   onClick={() => setCurrentVariant(variant)}
                   className={cn("hidden")}
                 />
                 <label
-                  htmlFor={variant.variantId.toString()}
+                  htmlFor={variant.id.toString()}
                   className={cn(
                     "inline-flex cursor-pointer flex-row items-center justify-center rounded-[1.25rem] border border-solid px-3 py-2 text-[0.875rem] font-bold capitalize leading-[1.21] transition-all duration-100",
-                    currentVariant.variantId === variant.variantId
+                    currentVariant.id === variant.id
                       ? "border-[#1F5ADD] bg-[#1F5ADD]/10 text-[#1F5ADD]"
                       : "border-[#8C8F8D] text-[#8C8F8D]",
                   )}
@@ -251,14 +256,19 @@ export const ProductOverview = ({
               "mt-3 list-disc space-y-1 pl-6 text-[0.875rem] leading-[1.21]",
             )}
           >
-            {shortDescription && (
+            {attributes && (
               <>
-                {shortDescription.length === 1 ? (
-                  <li>{shortDescription[0]}</li>
+                {attributes.length === 1 ? (
+                  <li>
+                    {attributes[0].attributeName}:{" "}
+                    {attributes[0].attributeValue}
+                  </li>
                 ) : (
                   <>
-                    {shortDescription.map((item, index) => (
-                      <li key={`product-short-info-${index}`}>{item}</li>
+                    {attributes.map((item, index) => (
+                      <li key={`product-short-info-${index}`}>
+                        {item.attributeName}: {item.attributeValue}
+                      </li>
                     ))}
                   </>
                 )}
@@ -284,12 +294,11 @@ export const ProductOverview = ({
             )}
           >
             <button
-              disabled={currentVariant.stockQuantity === 0 || quantity === 1}
+              disabled={stockQuantity === 0 || quantity === 1}
               onClick={handleMinusButton}
               className={cn(
                 "flex h-full items-center px-1",
-                (currentVariant.stockQuantity === 0 || quantity === 1) &&
-                  "opacity-50",
+                (stockQuantity === 0 || quantity === 1) && "opacity-50",
               )}
             >
               <svg
@@ -310,7 +319,7 @@ export const ProductOverview = ({
             <input
               type="number"
               min={1}
-              max={currentVariant.stockQuantity || 999}
+              max={stockQuantity || 999}
               value={quantity}
               onChange={(e) => setQuantity(Number(e.target.value))}
               className={cn(
@@ -319,15 +328,15 @@ export const ProductOverview = ({
             />
             <button
               disabled={
-                currentVariant.stockQuantity === 0 ||
-                quantity === currentVariant.stockQuantity ||
+                stockQuantity === 0 ||
+                quantity === stockQuantity ||
                 quantity === 999
               }
               onClick={handlePlusButton}
               className={cn(
                 "flex h-full items-center px-1",
-                (currentVariant.stockQuantity === 0 ||
-                  quantity === currentVariant.stockQuantity ||
+                (stockQuantity === 0 ||
+                  quantity === stockQuantity ||
                   quantity === 999) &&
                   "opacity-50",
               )}
@@ -352,7 +361,7 @@ export const ProductOverview = ({
             className={cn(
               "text-[0.875rem] font-normal leading-[1.21] text-[#8C8F8D]",
             )}
-          >{`Tồn kho: ${currentVariant.stockQuantity}`}</p>
+          >{`Tồn kho: ${stockQuantity}`}</p>
         </div>
 
         {/*Add to Cart*/}
@@ -361,7 +370,7 @@ export const ProductOverview = ({
             "mt-4 flex flex-col items-center gap-x-7 gap-y-3 xs:flex-row",
           )}
         >
-          {currentVariant.stockQuantity === 0 ? (
+          {stockQuantity === 0 ? (
             <div
               className={cn(
                 "w-full select-none rounded-[1.25rem] bg-[#EAEFFA] px-10 py-3 text-base font-bold leading-[1.21] text-[#1250DC] xs:w-auto",

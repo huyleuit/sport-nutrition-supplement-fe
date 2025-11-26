@@ -12,7 +12,7 @@ const cartApiRequests = {
   // Cart
   getCartProducts: () => http.get<CartResType>("/cart/all"),
   addProductToCart: (body: AddProductToCartBodyType) =>
-    http.post<CartResType>("/cart/item", body),
+    http.post<{ id: string }>("/cart/item", body),
   updateProductQuantity: (cartProductId: number, quantity: number) =>
     http.patch(`/cart/item/${cartProductId}`, { quantity }),
   deleteProductFromCart: (cartItemId: number) =>

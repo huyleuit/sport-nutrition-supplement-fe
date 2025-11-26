@@ -9,6 +9,10 @@ type TProps = {
 
 export const ProductDescription = ({ description }: TProps) => {
   const [isShowMore, setIsShowMore] = useState(false);
+  const descriptionLength = description.length;
+  if (descriptionLength === 0) {
+    description = "<p>Không có mô tả</p>";
+  }
   return (
     <div
       className={cn(
@@ -31,7 +35,7 @@ export const ProductDescription = ({ description }: TProps) => {
         onClick={() => setIsShowMore(!isShowMore)}
         className={cn(
           "absolute bottom-6 flex h-[5rem] w-[calc(100%-3rem)] flex-col items-center justify-end",
-          isShowMore ? "hidden" : "",
+          isShowMore || descriptionLength === 0 ? "hidden" : "",
         )}
         style={{
           background:

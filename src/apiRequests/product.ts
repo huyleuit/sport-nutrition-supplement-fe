@@ -13,7 +13,7 @@ const productApiRequest = {
     return http.get<AllProductsResType>(`/products/search?${queryParams}`);
   },
   allProducts: (queryParams: string) => {
-    return http.get<AllProductsResType>(`/products/all?${queryParams}`);
+    return http.get<AllProductsResType>(`/products?${queryParams}`);
   },
   categoryProducts: (category: string, queryParams: string) => {
     return http.get<AllProductsResType>(
@@ -24,7 +24,7 @@ const productApiRequest = {
   productDetail: (productId: string) =>
     http.get<ProductDetailResType>(`/products/${productId}`),
   productVariants: (productId: string) =>
-    http.get<ProductVariantListType>(`/products/${productId}/variants`),
+    http.get<ProductVariantListType>(`/variants/product/${productId}`),
 
   // Category
   categories: () => http.get<CategoryListType>("/categories"),
