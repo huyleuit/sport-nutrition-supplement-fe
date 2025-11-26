@@ -9,31 +9,27 @@ import blueCheck from "/public/blue-check.svg";
 type TProps = {
   index: number;
   product: {
-    productId: number;
+    id: string;
     productName: string;
-    image: {
-      imageId: number;
-      imageUrl: string;
-      publicId: string;
-      createAt: string;
-    }[];
     price: number;
-    sale: number;
-    priceAfterSale: number;
+    imageUrl: string;
   };
 };
 
 const HomeProductCard = ({ index, product }: TProps) => {
   const router = useRouter();
+  const { id, productName, price, imageUrl } = product;
+  const sale = Math.floor(Math.random() * 100);
+  const priceBeforeSale = price + (price * sale) / 100;
   return (
     <div
-      id={product?.productId.toString()}
+      id={id}
       className="group mx-auto w-[13.5rem] space-y-1 overflow-hidden rounded-[0.625rem] border border-solid border-[#8C8F8D] bg-white px-4 py-3"
     >
       <div>
         <Image
-          src={product?.image[0].imageUrl}
-          alt={product?.productName}
+          src={imageUrl}
+          alt={productName}
           width={145}
           height={145}
           className="mx-auto h-[9.0625rem] w-auto"
@@ -41,7 +37,7 @@ const HomeProductCard = ({ index, product }: TProps) => {
       </div>
       <div>
         <Link
-          href={`/san-pham/${convertSlugUrl(product?.productName)}-${product?.productId}.html`}
+          href={`/san-pham/${convertSlugUrl(productName)}-${id}.html`}
           className="space-y-1"
         >
           <div
@@ -59,25 +55,23 @@ const HomeProductCard = ({ index, product }: TProps) => {
             </div>
           </div>
           <div className="line-clamp-3 min-h-[3.9875rem] text-[0.875rem] font-normal leading-normal text-[#333] group-hover:underline">
-            {product?.productName}
+            {productName}
           </div>
         </Link>
       </div>
       <Rating name="read-only" value={5} readOnly />
       <p className="text-normal font-bold leading-[1.21] text-[#C11616]">
-        {formatPrice(product?.priceAfterSale)}
+        {formatPrice(price)}
       </p>
       <div className="flex flex-row items-center gap-1">
         <p className="text-[0.75rem] font-bold leading-[1.21] text-[#8C8F8D] line-through">
-          {formatPrice(product?.price)}
+          {formatPrice(priceBeforeSale)}
         </p>
-        <div className="rounded-full bg-[#C11616] p-1 text-[0.625rem] font-bold text-white">{`-${product?.sale}%`}</div>
+        <div className="rounded-full bg-[#C11616] p-1 text-[0.625rem] font-bold text-white">{`-${sale}%`}</div>
       </div>
       <button
         onClick={() =>
-          router.push(
-            `/san-pham/${convertSlugUrl(product?.productName)}-${product?.productId}.html`,
-          )
+          router.push(`/san-pham/${convertSlugUrl(productName)}-${id}.html`)
         }
         className="text-normal w-full rounded-full bg-[#1F5ADD] py-3 leading-[1.21] text-white transition-all duration-300 hover:bg-[#2c6af0]"
       >
