@@ -23,27 +23,30 @@ export const HeaderUser = () => {
           <Avatar
             className={cn("size-9")}
             style={{
-              backgroundColor: `${stringToColor(user?.name)}`,
+              backgroundColor: `${stringToColor(user?.fullName)}`,
             }}
           >
             <AvatarFallback
               className={cn("text-base leading-none")}
               style={{
-                color: `${getContrastingColor(stringToColor(user?.name))}`,
+                color: `${getContrastingColor(stringToColor(user?.fullName))}`,
               }}
             >
-              {`${getInitials(user?.name ?? "undefined undefined")}`}
+              {`${getInitials(user?.fullName ?? "undefined undefined")}`}
             </AvatarFallback>
           </Avatar>
         </div>
         <div className="line-clamp-1 text-base font-medium capitalize text-white">
-          {user?.name.split(" ").slice(-2).join(" ")}
+          {user?.fullName?.split(" ").slice(-2).join(" ")}
         </div>
       </Link>
     );
   }
   return (
-    <Link href="/dang-nhap" className="hidden flex-row items-center gap-2 xl:flex">
+    <Link
+      href="/dang-nhap"
+      className="hidden flex-row items-center gap-2 xl:flex"
+    >
       <Image src={accountIcon} alt="" className="size-7" />
       <p className="text-center text-[0.875rem] font-semibold text-white">
         Đăng nhập

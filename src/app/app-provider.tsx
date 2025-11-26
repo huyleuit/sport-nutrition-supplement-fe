@@ -1,5 +1,5 @@
 "use client";
-import { AccountResType } from "@/schemaValidations/account.schema";
+import { TUser } from "@/types/user";
 import {
   createContext,
   useCallback,
@@ -8,7 +8,7 @@ import {
   useState,
 } from "react";
 
-type User = AccountResType;
+type User = TUser;
 
 const AppContext = createContext<{
   user: User | null;

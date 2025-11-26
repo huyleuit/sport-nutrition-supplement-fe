@@ -52,7 +52,7 @@ export const OrderAddress = ({
             <TextField
               disabled
               label="Họ và tên"
-              value={user?.name}
+              value={user?.fullName}
               variant="outlined"
               className={cn(
                 "grow rounded-lg border border-solid border-[#8C8F8D] px-4 py-2 text-sm",
@@ -61,7 +61,7 @@ export const OrderAddress = ({
             <TextField
               disabled
               label="Số điện thoại"
-              value={user?.phone}
+              value={user?.phoneNumber}
               variant="outlined"
               className={cn(
                 "grow rounded-lg border border-solid border-[#8C8F8D] px-4 py-1 text-sm",

@@ -27,21 +27,21 @@ export const UserAndCart = () => {
             <Avatar
               className={cn("size-[1.375rem] xs:size-7")}
               style={{
-                backgroundColor: `${stringToColor(user?.name)}`,
+                backgroundColor: `${stringToColor(user?.fullName)}`,
               }}
             >
               <AvatarFallback
                 className={cn("text-[0.7rem] xs:text-sm")}
                 style={{
-                  color: `${getContrastingColor(stringToColor(user?.name))}`,
+                  color: `${getContrastingColor(stringToColor(user?.fullName))}`,
                 }}
               >
-                {`${getInitials(user?.name ?? "undefined undefined")}`}
+                {`${getInitials(user?.fullName ?? "undefined undefined")}`}
               </AvatarFallback>
             </Avatar>
           </div>
           <div className="line-clamp-1 hidden shrink-0 text-center text-sm font-semibold capitalize leading-none text-white md:flex">
-            {user?.name.split(" ").slice(-2).join(" ")}
+            {user?.fullName?.split(" ").slice(-2).join(" ")}
           </div>
         </Link>
       );
