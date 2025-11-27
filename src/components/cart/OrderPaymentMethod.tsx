@@ -4,16 +4,16 @@ import { Dispatch, SetStateAction } from "react";
 // ** Import Icons
 import { MethodSelection } from "./MethodSelection";
 import cash from "/public/cart/cash.svg";
-import internetBanking from "/public/cart/internet-banking.svg";
+// import internetBanking from "/public/cart/internet-banking.svg";
 import momo from "/public/cart/momo.webp";
 import vnPay from "/public/cart/vn-pay.webp";
 
 const PAYMENT_METHODS = [
-  {
-    icon: internetBanking,
-    label: "Thanh toán bằng chuyển khoản (QR Code)",
-    method: "INTERNET_BANKING",
-  },
+  // {
+  //   icon: internetBanking,
+  //   label: "Thanh toán bằng chuyển khoản (QR Code)",
+  //   method: "INTERNET_BANKING",
+  // },
   {
     icon: vnPay,
     label: "Thanh toán bằng VNPay",

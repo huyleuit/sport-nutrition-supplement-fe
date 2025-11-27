@@ -52,7 +52,7 @@ export const ProductOverview = ({
   const [quantity, setQuantity] = useState(1);
   const [isLoading, setIsLoading] = useState(false);
   const [currentVariant, setCurrentVariant] = useState(variants[0]);
-  const stockQuantity = currentVariant.quantity;
+  const stockQuantity = currentVariant?.quantity || 0;
 
   const handleMinusButton = () => {
     if (quantity === 1) return;

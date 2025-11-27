@@ -49,10 +49,10 @@ export type OrderRequestResType = {
 };
 
 export type OrderContentBodyType = {
-  orderId: number;
-  paymentMethod: string;
-  addressId: string | null;
-  addressDetail: string | null;
+  // orderId: number;
+  // paymentMethod: string;
+  addressId: string;
+  // addressDetail: string | null;
   method: string;
   note: string | null;
 };

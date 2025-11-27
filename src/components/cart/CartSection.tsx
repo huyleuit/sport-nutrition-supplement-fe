@@ -6,7 +6,7 @@ import { OrderProductCard } from "@/components/cart/OrderProductCard";
 import { OrderShippingMethod } from "@/components/cart/OrderShippingMethod";
 import CustomLoadingAnimation from "@/components/common/CustomLoadingAnimation";
 import { Button } from "@/components/ui/button";
-import { useToast } from "@/hooks/use-toast";
+// import { useToast } from "@/hooks/use-toast";
 import { cn, formatPrice, handleErrorApi } from "@/lib/utils";
 import { CartResType, OrderRequestResType } from "@/types/cart";
 import Image from "next/image";
@@ -15,19 +15,18 @@ import { useEffect, useState } from "react";
 import emptyCart from "/public/empty-cart.webp";
 
 export const CartSection = () => {
-  const { toast } = useToast();
+  // const { toast } = useToast();
   const [data, setData] = useState<CartResType>([]);
   const [isLoading, setIsLoading] = useState<boolean>(false);
   const [isOrdering, setIsOrdering] = useState<boolean>(false);
   // const [isAvailable, setIsAvailable] = useState<boolean>(true);
-  const [orderData, setOrderData] = useState<OrderRequestResType>();
+  const [_orderData, setOrderData] = useState<OrderRequestResType>();
 
   // Order Information
   const [addressId, setAddressId] = useState<string>("");
   const [address, setAddress] = useState<string>("");
   const [note, setNote] = useState<string>("");
-  const [paymentMethod, setPaymentMethod] =
-    useState<string>("INTERNET_BANKING");
+  const [paymentMethod, setPaymentMethod] = useState<string>("VN_PAY");
   const [shippingMethod, setShippingMethod] = useState<string>("TPHCM");
 
   useEffect(() => {
@@ -54,11 +53,8 @@ export const CartSection = () => {
     if (isOrdering) {
       try {
         const result = await cartApiRequests.addOrderContent({
-          orderId: orderData?.orderId || 0,
-          paymentMethod: paymentMethod,
-          addressId: addressId === "" ? null : addressId,
-          addressDetail: address ? address : null,
-          method: shippingMethod,
+          addressId: addressId,
+          method: paymentMethod,
           note,
         });
         window.location.href = result.payload.redirectUrl;
@@ -72,11 +68,12 @@ export const CartSection = () => {
         const result = await cartApiRequests.createOrder();
         setOrderData(result.payload);
       } catch (error: any) {
-        toast({
-          variant: "destructive",
-          title: "Lỗi không xác định, vui lòng thử lại sau",
-          description: error?.payload.message,
-        });
+        // toast({
+        //   variant: "destructive",
+        //   title: "Lỗi không xác định, vui lòng thử lại sau",
+        //   description: error?.payload.message,
+        // });
+        console.log(error);
       } finally {
         setIsLoading(false);
         setIsOrdering(true);
@@ -267,7 +264,7 @@ export const CartSection = () => {
               {formatPrice(getTotalPrice())}
             </span>
           </div>
-          <div
+          {/* <div
             className={cn("mt-3 flex flex-row items-center justify-between")}
           >
             <span className={cn("text-base text-[#4a4f63]")}>
@@ -276,7 +273,7 @@ export const CartSection = () => {
             <span className={cn("text-base font-medium text-[#f79009]")}>
               -{formatPrice(getTotalPrice() - getTotalPriceAfterSale())}
             </span>
-          </div>
+          </div> */}
           <div
             className={cn("mt-3 flex flex-row items-center justify-between")}
           >
@@ -287,7 +284,7 @@ export const CartSection = () => {
               {formatPrice(0)}
             </span>
           </div>
-          <div
+          {/* <div
             className={cn("mt-3 flex flex-row items-center justify-between")}
           >
             <span className={cn("text-base text-[#4a4f63]")}>
@@ -296,7 +293,7 @@ export const CartSection = () => {
             <span className={cn("text-base font-medium text-[#f79009]")}>
               -{formatPrice(getTotalPrice() - getTotalPriceAfterSale())}
             </span>
-          </div>
+          </div> */}
           <hr className="my-3" />
           <div className={cn("flex flex-col lg:flex-row xl:flex-col")}>
             <div
@@ -312,13 +309,13 @@ export const CartSection = () => {
                 Thành tiền
               </span>
               <div className={cn("flex flex-row items-baseline gap-1.5")}>
-                <span
+                {/* <span
                   className={cn(
                     "text-[0.875rem] leading-[1.25rem] text-[#4a4f63] line-through",
                   )}
                 >
                   {formatPrice(getTotalPrice())}
-                </span>
+                </span> */}
                 <span
                   className={cn(
                     "text-[1.25rem] font-semibold leading-7 tracking-[0.005rem] text-[#1250dc]",
