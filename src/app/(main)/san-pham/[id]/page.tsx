@@ -69,7 +69,7 @@ const page = async ({ params }: TProps) => {
           name={productData.productName}
         />
         <ProductOverview {...productOverviewProps} />
-        <ProductDescription description={""} />
+        <ProductDescription description={productData.description} />
         <ProductReviews />
       </div>
     </div>
