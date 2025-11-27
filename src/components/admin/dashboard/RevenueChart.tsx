@@ -1,13 +1,71 @@
 "use client";
 
-import { useState } from "react";
+import { useAdmin } from "@/contexts/AdminContext";
+import { formatPrice } from "@/lib/utils";
+import { useMemo } from "react";
 
-import { monthlyData } from "@/data/admin/revenue";
+const monthNames = [
+  "T1",
+  "T2",
+  "T3",
+  "T4",
+  "T5",
+  "T6",
+  "T7",
+  "T8",
+  "T9",
+  "T10",
+  "T11",
+  "T12",
+];
 
 export function RevenueChart() {
-  const [period, setPeriod] = useState<"month" | "year">("month");
+  const { orders, isLoading } = useAdmin();
 
-  const maxRevenue = Math.max(...monthlyData.map((d) => d.revenue));
+  const monthlyData = useMemo(() => {
+    const now = new Date();
+    const currentYear = now.getFullYear();
+    const months = Array.from({ length: 12 }, (_, i) => {
+      const paidOrders = orders.filter((order) => {
+        const orderDate = new Date(order.createdDate);
+        return (
+          orderDate.getMonth() === i &&
+          orderDate.getFullYear() === currentYear &&
+          order.status === "PAID"
+        );
+      });
+      const revenue = paidOrders.reduce(
+        (sum, order) => sum + order.totalAmount,
+        0,
+      );
+      return {
+        month: monthNames[i],
+        revenue: revenue / 1000000, // Convert to millions
+      };
+    });
+    return months;
+  }, [orders]);
+
+  const maxRevenue = useMemo(
+    () => Math.max(...monthlyData.map((d) => d.revenue), 1),
+    [monthlyData],
+  );
+
+  const totalRevenue = useMemo(
+    () => monthlyData.reduce((sum, d) => sum + d.revenue * 1000000, 0),
+    [monthlyData],
+  );
+
+  const avgRevenue = useMemo(() => {
+    const monthsWithRevenue = monthlyData.filter((d) => d.revenue > 0).length;
+    return monthsWithRevenue > 0 ? totalRevenue / monthsWithRevenue : 0;
+  }, [monthlyData, totalRevenue]);
+
+  if (isLoading) {
+    return (
+      <div className="h-96 animate-pulse rounded-lg bg-white p-6 shadow" />
+    );
+  }
 
   return (
     <div className="rounded-lg bg-white p-6 shadow">
@@ -17,30 +75,8 @@ export function RevenueChart() {
             Doanh thu theo tháng
           </h3>
           <p className="mt-1 text-sm text-gray-500">
-            Biểu đồ doanh thu năm 2024
+            Biểu đồ doanh thu năm 2025
           </p>
-        </div>
-        <div className="flex gap-2">
-          <button
-            onClick={() => setPeriod("month")}
-            className={`rounded-lg px-3 py-1.5 text-sm font-medium transition-colors ${
-              period === "month"
-                ? "bg-blue-100 text-blue-700"
-                : "bg-gray-100 text-gray-600 hover:bg-gray-200"
-            }`}
-          >
-            Tháng
-          </button>
-          <button
-            onClick={() => setPeriod("year")}
-            className={`rounded-lg px-3 py-1.5 text-sm font-medium transition-colors ${
-              period === "year"
-                ? "bg-blue-100 text-blue-700"
-                : "bg-gray-100 text-gray-600 hover:bg-gray-200"
-            }`}
-          >
-            Năm
-          </button>
         </div>
       </div>
 
@@ -58,7 +94,7 @@ export function RevenueChart() {
                   >
                     {/* Tooltip */}
                     <div className="absolute -top-12 left-1/2 hidden -translate-x-1/2 whitespace-nowrap rounded-lg bg-gray-900 px-3 py-1.5 text-xs text-white group-hover:block">
-                      {data.revenue}M VNĐ
+                      {data.revenue.toFixed(1)}M VNĐ
                       <div className="absolute left-1/2 top-full -translate-x-1/2 border-4 border-transparent border-t-gray-900" />
                     </div>
                   </div>
@@ -74,15 +110,21 @@ export function RevenueChart() {
       <div className="mt-6 grid grid-cols-3 gap-4 border-t pt-4">
         <div>
           <p className="text-xs text-gray-500">Tổng doanh thu</p>
-          <p className="mt-1 text-lg font-semibold text-gray-900">7.35B VNĐ</p>
+          <p className="mt-1 text-lg font-semibold text-gray-900">
+            {formatPrice(totalRevenue)}
+          </p>
         </div>
         <div>
           <p className="text-xs text-gray-500">TB/Tháng</p>
-          <p className="mt-1 text-lg font-semibold text-gray-900">612M VNĐ</p>
+          <p className="mt-1 text-lg font-semibold text-gray-900">
+            {formatPrice(avgRevenue)}
+          </p>
         </div>
         <div>
-          <p className="text-xs text-gray-500">Tăng trưởng</p>
-          <p className="mt-1 text-lg font-semibold text-green-600">+15.3%</p>
+          <p className="text-xs text-gray-500">Tổng đơn đã thanh toán</p>
+          <p className="mt-1 text-lg font-semibold text-gray-900">
+            {orders.filter((o) => o.status === "PAID").length}
+          </p>
         </div>
       </div>
     </div>

@@ -80,8 +80,8 @@ export const Footer = () => {
               </p>
               <p className={cn("text-[0.875rem] text-app-carbon")}>
                 <strong>Email:</strong>{" "}
-                <Link href="mailto:4hprotein@gmail.com" target="_blank">
-                  4hprotein@gmail.com
+                <Link href="mailto:support@4hprotein.store" target="_blank">
+                  support@4hprotein.store
                 </Link>
               </p>
             </div>

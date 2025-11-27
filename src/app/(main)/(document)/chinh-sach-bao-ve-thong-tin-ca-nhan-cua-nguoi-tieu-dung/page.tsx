@@ -100,8 +100,8 @@ export default function page() {
       </p>
       <p>
         Email:{" "}
-        <Link href="mailto:4hprotein@gmail.com" target="_blank">
-          4hprotein@gmail.com
+        <Link href="mailto:support@4hprotein.store" target="_blank">
+          support@4hprotein.store
         </Link>
       </p>
 
@@ -128,8 +128,8 @@ export default function page() {
       <ul className={cn("ml-2 list-[lower-roman] space-y-1 pl-4")}>
         <li>
           Qua email:{" "}
-          <Link href="mailto:4hprotein@gmail.com" target="_blank">
-            4hprotein@gmail.com
+          <Link href="mailto:support@4hprotein.store" target="_blank">
+            support@4hprotein.store
           </Link>
         </li>
         <li>

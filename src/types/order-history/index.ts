@@ -32,7 +32,7 @@ export type OrderHistoryType = {
   id: string;
   createdDate: string;
   totalAmount: number;
-  status: "CANCELLED" | "PENDING" | "SHIPPING" | "SUCCESS";
+  status: "PAID" | "PENDING" | "CANCELLED";
   addressDetail: string | null;
   products: {
     id: string;
@@ -45,3 +45,24 @@ export type OrderHistoryType = {
 };
 
 export type OrderHistoryResType = OrderHistoryType[];
+
+export type OrderDetailResType = {
+  id: string;
+  location: string;
+  email: string;
+  phone: string;
+  orderDate: string;
+  totalAmount: number;
+  note: string | null;
+  status: "PAID" | "PENDING" | "CANCELLED";
+  items: {
+    id: string;
+    orderId: string;
+    variantId: string;
+    variantName: string;
+    quantity: number;
+    price: number;
+    imgUrl: string;
+    productName?: string;
+  }[];
+};
