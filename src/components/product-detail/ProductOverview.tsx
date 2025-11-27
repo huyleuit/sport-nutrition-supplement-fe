@@ -1,12 +1,13 @@
 "use client";
 import cartApiRequests from "@/apiRequests/cart";
+import productApiRequest from "@/apiRequests/product";
 import { brands } from "@/data/brand";
 import { useToast } from "@/hooks/use-toast";
 import { cn, formatPrice, handleErrorApi } from "@/lib/utils";
 import { Rating } from "@mui/material";
 import Image from "next/image";
 import Link from "next/link";
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import CustomLoadingAnimation from "../common/CustomLoadingAnimation";
 import { ProductImages } from "./ProductImages";
 import giftIcon from "/public/gift-icon.svg";
@@ -51,8 +52,50 @@ export const ProductOverview = ({
   const { toast } = useToast();
   const [quantity, setQuantity] = useState(1);
   const [isLoading, setIsLoading] = useState(false);
+  const [productVariants, setProductVariants] = useState(variants);
   const [currentVariant, setCurrentVariant] = useState(variants[0]);
+  const currentVariantIdRef = useRef<string | null>(variants[0]?.id || null);
   const stockQuantity = currentVariant?.quantity || 0;
+
+  const fetchVariants = async () => {
+    try {
+      const result = await productApiRequest.productVariants(id);
+      const updatedVariants = result.payload;
+      setProductVariants(updatedVariants);
+
+      const currentVariantId = currentVariantIdRef.current;
+      const updatedCurrentVariant =
+        updatedVariants.find((v) => v.id === currentVariantId) ||
+        updatedVariants[0];
+      setCurrentVariant(updatedCurrentVariant);
+      currentVariantIdRef.current = updatedCurrentVariant?.id || null;
+    } catch (error) {
+      console.error("Error fetching variants:", error);
+    }
+  };
+
+  useEffect(() => {
+    fetchVariants();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [id]);
+
+  useEffect(() => {
+    const handleFocus = () => {
+      fetchVariants();
+    };
+
+    window.addEventListener("focus", handleFocus);
+    return () => {
+      window.removeEventListener("focus", handleFocus);
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [id]);
+
+  useEffect(() => {
+    if (currentVariant?.id) {
+      currentVariantIdRef.current = currentVariant.id;
+    }
+  }, [currentVariant?.id]);
 
   const handleMinusButton = () => {
     if (quantity === 1) return;
@@ -109,9 +152,7 @@ export const ProductOverview = ({
     >
       <CustomLoadingAnimation isLoading={isLoading} />
 
-      {/*Product Image*/}
       <ProductImages images={images} />
-      {/*Product Information*/}
       <div
         className={cn("w-full overflow-hidden lg:w-[32.5rem] xl:w-[42.5rem]")}
       >
@@ -168,7 +209,6 @@ export const ProductOverview = ({
           )
         </p>
 
-        {/*Promotional Information*/}
         <div
           className={cn(
             "mt-5 w-max max-w-[95%] rounded-[0.625rem] bg-[#EDF0F3] p-3",
@@ -211,7 +251,6 @@ export const ProductOverview = ({
           </div>
         </div>
 
-        {/*Variants*/}
         <div className={cn("mt-2 flex w-max max-w-full flex-row gap-2")}>
           <div
             className={cn(
@@ -221,7 +260,7 @@ export const ProductOverview = ({
             Mùi vị:
           </div>
           <div className={cn("flex grow flex-wrap gap-2")}>
-            {variants.map((variant, index) => (
+            {productVariants.map((variant, index) => (
               <div key={variant.id}>
                 <input
                   id={variant.id.toString()}
@@ -229,7 +268,10 @@ export const ProductOverview = ({
                   type="radio"
                   value={variant.id.toString()}
                   defaultChecked={index === 0}
-                  onClick={() => setCurrentVariant(variant)}
+                  onClick={() => {
+                    setCurrentVariant(variant);
+                    currentVariantIdRef.current = variant.id;
+                  }}
                   className={cn("hidden")}
                 />
                 <label
@@ -248,7 +290,6 @@ export const ProductOverview = ({
           </div>
         </div>
 
-        {/*Short Infomation*/}
         <div className={cn("mt-3 text-[0.875rem] leading-[1.21] text-[#333]")}>
           <p>{name}</p>
           <ul
@@ -277,7 +318,6 @@ export const ProductOverview = ({
           </ul>
         </div>
 
-        {/*Quantity*/}
         <div
           className={cn("mt-4 flex flex-row items-center gap-4 text-[#333]")}
         >
@@ -364,7 +404,6 @@ export const ProductOverview = ({
           >{`Tồn kho: ${stockQuantity}`}</p>
         </div>
 
-        {/*Add to Cart*/}
         <div
           className={cn(
             "mt-4 flex flex-col items-center gap-x-7 gap-y-3 xs:flex-row",
