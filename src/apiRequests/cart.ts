@@ -14,14 +14,14 @@ const cartApiRequests = {
   addProductToCart: (body: AddProductToCartBodyType) =>
     http.post<{ id: string }>("/cart", body),
   updateProductQuantity: (id: string, quantity: number) =>
-    http.patch(`/cart/${id}`, { quantity }),
+    http.put(`/cart/${id}`, { quantity }),
   deleteProductFromCart: (id: string) => http.delete(`/cart/${id}`),
 
   // Order
   getAllOrders: () => http.get<OrderHistoryResType>("/orders/user"),
   createOrder: () => http.post<OrderRequestResType>("/order/create", {}),
   addOrderContent: (body: OrderContentBodyType) =>
-    http.post<OrderContentResType>("/order/content", body),
+    http.post<OrderContentResType>("/orders", body),
 };
 
 export default cartApiRequests;

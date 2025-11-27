@@ -173,13 +173,13 @@ export const OrderProductCard = ({ cartProduct, isOrdering }: TProps) => {
           >
             {formatPrice(cartProduct.price * cartProduct.quantity)}
           </span>
-          <span
+          {/* <span
             className={cn(
               "text-[.875rem] font-medium leading-[1.21] text-[#657384] line-through",
             )}
           >
             {formatPrice(cartProduct.price * cartProduct.quantity)}
-          </span>
+          </span> */}
         </div>
         <div
           className={cn(
