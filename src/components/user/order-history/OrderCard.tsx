@@ -1,14 +1,12 @@
 "use client";
 import {
   cn,
-  convertSlugUrl,
   formatPrice,
   getVietnameseDate,
   getVietnameseTime,
 } from "@/lib/utils";
 import { OrderHistoryType } from "@/types/order-history";
 import Image from "next/image";
-import Link from "next/link";
 import { useState } from "react";
 
 const STATUS = {
@@ -41,7 +39,7 @@ const OrderCard = ({ order }: TProps) => {
             >
               <div className="flex size-[3.5em] items-center justify-center rounded-[0.375em] border border-solid">
                 <Image
-                  src={product.image}
+                  src={product.imgUrl}
                   alt={product.productName}
                   width={48}
                   height={48}
@@ -49,12 +47,12 @@ const OrderCard = ({ order }: TProps) => {
                 />
               </div>
               <div className="ml-[0.5em] grow">
-                <Link
-                  href={`/san-pham/${convertSlugUrl(product.productName)}-${product.productId}.html`}
+                <div
+                  // href={`/san-pham/${convertSlugUrl(product.productName)}-${product.productId}.html`}
                   className="line-clamp-1 text-[0.9375em] leading-[1.3]"
                 >
                   {product.productName}
-                </Link>
+                </div>
                 <p className="line-clamp-1 text-[0.875em] leading-[1.3]">
                   {product.variantName}
                 </p>

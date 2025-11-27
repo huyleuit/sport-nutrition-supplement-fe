@@ -1,10 +1,11 @@
 export type CartResType = {
-  cartId: number;
-  userId: number;
-  products: CartProductsType;
-  combos: [] | null;
-  isAvailable: boolean;
-};
+  id: string;
+  variantId: string;
+  variantName: string;
+  price: number;
+  quantity: number;
+  imgUrl: string;
+}[];
 
 export type CartProductType = {
   cartItemId: number;

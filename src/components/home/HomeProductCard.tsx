@@ -19,8 +19,8 @@ type TProps = {
 const HomeProductCard = ({ index, product }: TProps) => {
   const router = useRouter();
   const { id, productName, price, imageUrl } = product;
-  const sale = Math.floor(Math.random() * 100);
-  const priceBeforeSale = price + (price * sale) / 100;
+  const sale = Math.floor(Math.random() * 51); // 0-50%
+  const priceBeforeSale = price / (1 - sale / 100);
   return (
     <div
       id={id}

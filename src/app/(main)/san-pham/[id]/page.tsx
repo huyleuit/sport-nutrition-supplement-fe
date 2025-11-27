@@ -36,7 +36,7 @@ const page = async ({ params }: TProps) => {
   const variantsRes = await productApiRequest.productVariants(productData.id);
   const variantsData = variantsRes.payload;
 
-  const discount = Math.floor(Math.random() * 100);
+  const discount = Math.floor(Math.random() * 51); // 0-50%
 
   const productOverviewProps = {
     id: productData.id,
@@ -44,7 +44,7 @@ const page = async ({ params }: TProps) => {
     images: productData.images.map((image) => image.imgUrl),
     brandId: productData.brandId,
     rating: 5,
-    price: productData.price * (1 + discount / 100), // price before discount
+    price: productData.price / (1 - discount / 100),
     priceAfterDiscount: productData.price,
     discount: discount,
     promotionInformation: [
