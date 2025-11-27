@@ -1,13 +1,18 @@
 "use client";
 import cartApiRequests from "@/apiRequests/cart";
-import { cn, convertSlugUrl, formatPrice, handleErrorApi } from "@/lib/utils";
-import { CartProductType } from "@/types/cart";
+import { cn, formatPrice, handleErrorApi } from "@/lib/utils";
 import Image from "next/image";
-import Link from "next/link";
 import { RemoveProductDialog } from "./RemoveProductDialog";
 
 type TProps = {
-  cartProduct: CartProductType;
+  cartProduct: {
+    id: string;
+    variantId: string;
+    variantName: string;
+    price: number;
+    quantity: number;
+    imgUrl: string;
+  };
   isOrdering: boolean;
 };
 
@@ -16,7 +21,7 @@ export const OrderProductCard = ({ cartProduct, isOrdering }: TProps) => {
     if (cartProduct.quantity === 1) return;
     try {
       await cartApiRequests.updateProductQuantity(
-        cartProduct.cartItemId,
+        cartProduct.id,
         cartProduct.quantity - 1,
       );
     } catch (error) {
@@ -27,14 +32,10 @@ export const OrderProductCard = ({ cartProduct, isOrdering }: TProps) => {
   };
 
   const handlePlusButton = async () => {
-    if (
-      cartProduct.quantity === cartProduct.stockQuantity ||
-      cartProduct.quantity === 999
-    )
-      return;
+    if (cartProduct.quantity === 999) return;
     try {
       await cartApiRequests.updateProductQuantity(
-        cartProduct.cartItemId,
+        cartProduct.id,
         cartProduct.quantity + 1,
       );
     } catch (error) {
@@ -90,16 +91,11 @@ export const OrderProductCard = ({ cartProduct, isOrdering }: TProps) => {
             {cartProduct.quantity}
           </div>
           <button
-            disabled={
-              cartProduct.quantity === cartProduct.stockQuantity ||
-              cartProduct.quantity === 999
-            }
+            disabled={cartProduct.quantity === 999}
             onClick={handlePlusButton}
             className={cn(
               "flex h-full items-center px-1",
-              (cartProduct.quantity === cartProduct.stockQuantity ||
-                cartProduct.quantity === 999) &&
-                "opacity-50",
+              cartProduct.quantity === 999 && "opacity-50",
             )}
           >
             <svg
@@ -123,15 +119,15 @@ export const OrderProductCard = ({ cartProduct, isOrdering }: TProps) => {
   };
   return (
     <div className={cn("flex items-center")}>
-      <Link
-        href={`san-pham/${cartProduct.productId}`}
+      <div
+        // href={`san-pham/${cartProduct.productId}`}
         className={cn(
           "mr-3 shrink-0 self-start rounded-lg border border-solid",
         )}
       >
         <Image
-          src={cartProduct.image}
-          alt={cartProduct.productName}
+          src={cartProduct.imgUrl}
+          alt={cartProduct.variantName}
           width={80}
           height={80}
           loading="lazy"
@@ -139,7 +135,7 @@ export const OrderProductCard = ({ cartProduct, isOrdering }: TProps) => {
           data-nimg="1"
           className={cn("max-h-20 max-w-20 rounded-[0.4375rem] object-contain")}
         />
-      </Link>
+      </div>
       <div
         className={cn(
           "flex flex-col justify-between gap-y-1 md:flex-auto md:flex-row md:items-center",
@@ -151,12 +147,12 @@ export const OrderProductCard = ({ cartProduct, isOrdering }: TProps) => {
             isOrdering ? "md:basis-[22.5rem]" : "md:basis-[17.5rem]",
           )}
         >
-          <Link
-            href={`/san-pham/${convertSlugUrl(cartProduct.productName)}-${cartProduct.productId}.html`}
+          <div
+            // href={`/san-pham/${convertSlugUrl(cartProduct.productName)}-${cartProduct.productId}.html`}
             className={cn("line-clamp-3 text-[0.9375rem] leading-[1.21]")}
           >
-            {cartProduct.productName}
-          </Link>
+            {cartProduct.variantName}
+          </div>
           <span
             className={cn(
               "line-clamp-1 text-[0.875rem] font-normal leading-[1.21] text-[#657384]",
@@ -175,7 +171,7 @@ export const OrderProductCard = ({ cartProduct, isOrdering }: TProps) => {
               "text-base font-semibold leading-[1.21] text-[#1250dc]",
             )}
           >
-            {formatPrice(cartProduct.priceAfterSale * cartProduct.quantity)}
+            {formatPrice(cartProduct.price * cartProduct.quantity)}
           </span>
           <span
             className={cn(
@@ -191,11 +187,11 @@ export const OrderProductCard = ({ cartProduct, isOrdering }: TProps) => {
             isOrdering ? "lg:ml-10" : "lg:ml-4",
           )}
         >
-          {cartProduct.stockQuantity === 0 ? (
+          {/* {cartProduct.stockQuantity === 0 ? (
             <div className="ml-1 mr-3 text-base text-red-500">Hết hàng</div>
-          ) : (
-            <QuantityButton />
-          )}
+          ) : ( */}
+          <QuantityButton />
+          {/* )} */}
         </div>
       </div>
       <div
@@ -204,7 +200,7 @@ export const OrderProductCard = ({ cartProduct, isOrdering }: TProps) => {
           isOrdering ? "hidden" : "",
         )}
       >
-        <RemoveProductDialog cartItemId={cartProduct.cartItemId} />
+        <RemoveProductDialog cartItemId={cartProduct.id} />
       </div>
     </div>
   );

@@ -13,14 +13,14 @@ const TopDealListSection = () => {
     productApiRequest.topDeals().then((result) => setData(result.payload));
   }, []);
 
-  if (data.length <= 3)
-    return (
-      <>
-        {data.map((product, index) => (
-          <HomeProductCard key={index} index={index} product={product} />
-        ))}
-      </>
-    );
+  // if (data.length <= 3)
+  //   return (
+  //     <>
+  //       {data.map((product, index) => (
+  //         <HomeProductCard key={index} index={index} product={product} />
+  //       ))}
+  //     </>
+  //   );
   return (
     <CustomCarousel>
       {data.map((product, index) => (

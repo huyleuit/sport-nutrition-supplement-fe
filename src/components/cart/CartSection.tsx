@@ -8,7 +8,7 @@ import CustomLoadingAnimation from "@/components/common/CustomLoadingAnimation";
 import { Button } from "@/components/ui/button";
 import { useToast } from "@/hooks/use-toast";
 import { cn, formatPrice, handleErrorApi } from "@/lib/utils";
-import { CartProductsType, OrderRequestResType } from "@/types/cart";
+import { CartResType, OrderRequestResType } from "@/types/cart";
 import Image from "next/image";
 import Link from "next/link";
 import { useEffect, useState } from "react";
@@ -16,10 +16,10 @@ import emptyCart from "/public/empty-cart.webp";
 
 export const CartSection = () => {
   const { toast } = useToast();
-  const [data, setData] = useState<CartProductsType>([]);
+  const [data, setData] = useState<CartResType>([]);
   const [isLoading, setIsLoading] = useState<boolean>(false);
   const [isOrdering, setIsOrdering] = useState<boolean>(false);
-  const [isAvailable, setIsAvailable] = useState<boolean>(true);
+  // const [isAvailable, setIsAvailable] = useState<boolean>(true);
   const [orderData, setOrderData] = useState<OrderRequestResType>();
 
   // Order Information
@@ -32,8 +32,8 @@ export const CartSection = () => {
 
   useEffect(() => {
     cartApiRequests.getCartProducts().then((res) => {
-      setData(res.payload.products);
-      setIsAvailable(res.payload.isAvailable);
+      setData(res.payload);
+      // setIsAvailable(res.payload.isAvailable);
     });
   }, []);
 
@@ -45,7 +45,7 @@ export const CartSection = () => {
 
   const getTotalPriceAfterSale = () => {
     return data.reduce((acc, product) => {
-      return acc + product.priceAfterSale * product.quantity;
+      return acc + product.price * product.quantity;
     }, 0);
   };
 
@@ -197,10 +197,10 @@ export const CartSection = () => {
                 "divide-y p-4 [&>*]:py-4 [&>:first-child]:pt-0 [&>:last-child]:pb-0",
               )}
             >
-              {data.map((cartProdcut) => (
+              {data.map((cartProduct) => (
                 <OrderProductCard
-                  key={cartProdcut.productId}
-                  cartProduct={cartProdcut}
+                  key={cartProduct.id}
+                  cartProduct={cartProduct}
                   isOrdering={isOrdering}
                 />
               ))}
@@ -334,9 +334,7 @@ export const CartSection = () => {
                 "lg:ml-auto lg:w-[20rem] xl:ml-0 xl:w-full",
                 "active:!bg-none",
               )}
-              disabled={
-                isOrdering ? !address && addressId === "" : !isAvailable
-              }
+              disabled={isOrdering && !address && addressId === ""}
               onClick={handleOrderButton}
               style={{
                 backgroundImage:

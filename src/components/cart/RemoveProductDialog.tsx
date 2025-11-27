@@ -16,7 +16,7 @@ import {
 } from "../ui/alert-dialog";
 
 type TProps = {
-  cartItemId: number;
+  cartItemId: string;
 };
 
 export const RemoveProductDialog = ({ cartItemId }: TProps) => {
