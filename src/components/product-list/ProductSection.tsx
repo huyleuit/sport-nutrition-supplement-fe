@@ -11,7 +11,7 @@ import MobileFilter from "./MobileFilter";
 import ProductCard from "./ProductCard";
 import { ProductsLoading } from "./ProductsLoading";
 
-type SortOptions = "asc" | "desc";
+type SortOptions = "ASC" | "DESC";
 
 const ProductSection = ({ category }: { category: string }) => {
   const pathname = usePathname();
@@ -35,7 +35,7 @@ const ProductSection = ({ category }: { category: string }) => {
     totalElements: 0,
     totalPages: 1,
   });
-  const [sortOption, setSortOption] = useState<SortOptions>("asc");
+  const [sortOption, setSortOption] = useState<SortOptions>("ASC");
 
   const handleClearFilters = () => {
     router.push(pathname);
@@ -48,7 +48,10 @@ const ProductSection = ({ category }: { category: string }) => {
 
   useEffect(() => {
     setIsLoading(true);
-    const paramsObject: Record<string, string[]> = {};
+    const paramsObject: Record<string, string[]> = {
+      _perPage: ["12"],
+      _sort: ["price"],
+    };
 
     searchParams.forEach((value, key) => {
       if (!paramsObject[key]) {
@@ -68,8 +71,8 @@ const ProductSection = ({ category }: { category: string }) => {
     });
 
     const params = {
-      page: [currentPage.toString()],
-      sortByPrice: [sortOption],
+      _page: [currentPage.toString()],
+      _order: [sortOption],
       ...paramsObject,
     };
 
@@ -127,11 +130,11 @@ const ProductSection = ({ category }: { category: string }) => {
             </span>
             <button
               onClick={() => {
-                if (sortOption !== "asc") setSortOption("asc");
+                if (sortOption !== "ASC") setSortOption("ASC");
               }}
               className={cn(
                 "rounded-full border border-solid bg-white px-3 py-2 transition-all duration-300",
-                sortOption === "asc"
+                sortOption === "ASC"
                   ? "border-[#1F5ADD] text-[#1F5ADD]"
                   : "border-[#8C8F8D] text-[#8C8F8D]",
               )}
@@ -140,11 +143,11 @@ const ProductSection = ({ category }: { category: string }) => {
             </button>
             <button
               onClick={() => {
-                if (sortOption !== "desc") setSortOption("desc");
+                if (sortOption !== "DESC") setSortOption("DESC");
               }}
               className={cn(
                 "mr-auto rounded-full border border-solid bg-white px-3 py-2 transition-all duration-300",
-                sortOption === "desc"
+                sortOption === "DESC"
                   ? "border-[#1F5ADD] text-[#1F5ADD]"
                   : "border-[#8C8F8D] text-[#8C8F8D]",
               )}
@@ -213,11 +216,11 @@ const ProductSection = ({ category }: { category: string }) => {
           <span className="text-[1.125rem] font-normal">Sắp xếp theo</span>
           <button
             onClick={() => {
-              if (sortOption !== "asc") setSortOption("asc");
+              if (sortOption !== "ASC") setSortOption("ASC");
             }}
             className={cn(
               "rounded-full border border-solid bg-white px-3 py-2 transition-all duration-300",
-              sortOption === "asc"
+              sortOption === "ASC"
                 ? "border-[#1F5ADD] text-[#1F5ADD]"
                 : "border-[#8C8F8D] text-[#8C8F8D]",
             )}
@@ -226,11 +229,11 @@ const ProductSection = ({ category }: { category: string }) => {
           </button>
           <button
             onClick={() => {
-              if (sortOption !== "desc") setSortOption("desc");
+              if (sortOption !== "DESC") setSortOption("DESC");
             }}
             className={cn(
               "rounded-full border border-solid bg-white px-3 py-2 transition-all duration-300",
-              sortOption === "desc"
+              sortOption === "DESC"
                 ? "border-[#1F5ADD] text-[#1F5ADD]"
                 : "border-[#8C8F8D] text-[#8C8F8D]",
             )}
