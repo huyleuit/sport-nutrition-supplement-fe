@@ -11,9 +11,8 @@ import { useState } from "react";
 
 const STATUS = {
   CANCELLED: "Đã hủy",
-  PENDING: "Đang xử lý",
-  SHIPPING: "Đang giao hàng",
-  SUCCESS: "Giao hàng thành công",
+  PENDING: "Chờ xử lý",
+  PAID: "Đã thanh toán",
 };
 
 type TProps = {
@@ -113,10 +112,9 @@ const OrderCard = ({ order }: TProps) => {
           <div
             className={cn(
               "shrink-0 text-right text-[0.9375em] font-medium md:w-auto md:basis-[8em] md:text-center",
-              order.status === "SUCCESS" && "text-green-500",
+              order.status === "PAID" && "text-green-500",
               order.status === "CANCELLED" && "text-red-500",
               order.status === "PENDING" && "text-yellow-500",
-              order.status === "SHIPPING" && "text-blue-500",
             )}
           >
             {STATUS[order.status]}

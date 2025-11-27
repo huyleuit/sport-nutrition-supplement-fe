@@ -1,27 +1,65 @@
 "use client";
 
-import { useState } from "react";
-import { DataTable, Column } from "@/components/admin/shared/DataTable";
+import cartApiRequests from "@/apiRequests/cart";
+import { Column, DataTable } from "@/components/admin/shared/DataTable";
 import { Modal } from "@/components/admin/shared/Modal";
 import { StatusBadge } from "@/components/admin/shared/StatusBadge";
-import { OrderForm } from "@/components/admin/forms/OrderForm";
 import { Button } from "@/components/ui/button";
-import { mockOrders, orderStatuses, type Order } from "@/data/admin/orders";
-import { formatPrice } from "@/lib/utils";
-import Link from "next/link";
+import { useAdmin } from "@/contexts/AdminContext";
+import { formatPrice, handleErrorApi } from "@/lib/utils";
+import { OrderDetailResType, OrderHistoryType } from "@/types/order-history";
+import { faEye } from "@fortawesome/free-solid-svg-icons";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
-import { faEye, faEdit, faPlus } from "@fortawesome/free-solid-svg-icons";
+import Image from "next/image";
+import Link from "next/link";
+import { useState } from "react";
+
+const orderStatuses = [
+  { value: "PENDING", label: "Chờ xử lý" },
+  { value: "PAID", label: "Đã thanh toán" },
+  { value: "CANCELLED", label: "Đã hủy" },
+];
 
 export default function OrdersPage() {
-  const [orders, setOrders] = useState(mockOrders);
-  const [selectedOrder, setSelectedOrder] = useState<Order | null>(null);
+  const { orders, isLoading, refreshOrders } = useAdmin();
+  const [selectedOrderId, setSelectedOrderId] = useState<string | null>(null);
+  const [orderDetail, setOrderDetail] = useState<OrderDetailResType | null>(
+    null,
+  );
   const [isDetailModalOpen, setIsDetailModalOpen] = useState(false);
-  const [isFormModalOpen, setIsFormModalOpen] = useState(false);
-  const [isEditMode, setIsEditMode] = useState(false);
+  const [isLoadingDetail, setIsLoadingDetail] = useState(false);
+  const [statusFilter, setStatusFilter] = useState<string>("");
 
-  const columns: Column<Order>[] = [
+  // Filter orders by status
+  const filteredOrders =
+    statusFilter === ""
+      ? orders
+      : orders.filter((order) => order.status === statusFilter);
+
+  const handleViewDetail = async (orderId: string) => {
+    setSelectedOrderId(orderId);
+    setIsDetailModalOpen(true);
+    setIsLoadingDetail(true);
+    try {
+      const result = await cartApiRequests.getDetailOrder(orderId);
+      setOrderDetail(result.payload);
+    } catch (error) {
+      handleErrorApi({ error });
+      setIsDetailModalOpen(false);
+    } finally {
+      setIsLoadingDetail(false);
+    }
+  };
+
+  const handleCloseModal = () => {
+    setIsDetailModalOpen(false);
+    setSelectedOrderId(null);
+    setOrderDetail(null);
+  };
+
+  const columns: Column<OrderHistoryType>[] = [
     {
-      key: "orderNumber",
+      key: "id",
       label: "Mã đơn",
       sortable: true,
       render: (order) => (
@@ -29,65 +67,58 @@ export default function OrdersPage() {
           href={`/admin/orders/${order.id}`}
           className="font-medium text-blue-600 hover:text-blue-700"
         >
-          {order.orderNumber}
+          #{order.id.slice(-8)}
         </Link>
       ),
     },
     {
-      key: "customerName",
-      label: "Khách hàng",
-      sortable: true,
-      className: "text-left",
-      render: (order) => (
-        <div className="text-left">
-          <p className="font-medium text-gray-900">{order.customerName}</p>
-          <p className="text-xs text-gray-500">{order.customerPhone}</p>
-        </div>
-      ),
-    },
-    {
-      key: "createdAt",
+      key: "createdDate",
       label: "Ngày đặt",
       sortable: true,
       render: (order) => (
         <span className="text-sm text-gray-600">
-          {new Date(order.createdAt).toLocaleDateString("vi-VN")}
+          {new Date(order.createdDate).toLocaleDateString("vi-VN", {
+            year: "numeric",
+            month: "2-digit",
+            day: "2-digit",
+            hour: "2-digit",
+            minute: "2-digit",
+          })}
         </span>
       ),
     },
     {
-      key: "total",
+      key: "totalAmount",
       label: "Tổng tiền",
       sortable: true,
       render: (order) => (
         <span className="font-semibold text-gray-900">
-          {formatPrice(order.total)}
+          {formatPrice(order.totalAmount)}
         </span>
-      ),
-    },
-    {
-      key: "paymentMethod",
-      label: "Phương thức thanh toán",
-      render: (order) => (
-        <span className="text-sm text-gray-900">
-          {order.paymentMethod === "CASH" && "Tiền mặt"}
-          {order.paymentMethod === "INTERNET_BANKING" && "Chuyển khoản"}
-          {order.paymentMethod === "MOMO" && "MoMo"}
-          {order.paymentMethod === "VNPAY" && "VNPay"}
-        </span>
-      ),
-    },
-    {
-      key: "paymentStatus",
-      label: "Trạng thái thanh toán",
-      render: (order) => (
-        <StatusBadge status={order.paymentStatus} variant="payment" />
       ),
     },
     {
       key: "status",
       label: "Trạng thái",
       render: (order) => <StatusBadge status={order.status} variant="order" />,
+    },
+    {
+      key: "addressDetail",
+      label: "Địa chỉ",
+      render: (order) => (
+        <span className="max-w-xs truncate text-sm text-gray-600">
+          {order.addressDetail || "Không có địa chỉ"}
+        </span>
+      ),
+    },
+    {
+      key: "products",
+      label: "Số sản phẩm",
+      render: (order) => (
+        <span className="text-sm text-gray-600">
+          {order.products?.length || 0} SP
+        </span>
+      ),
     },
     {
       key: "actions",
@@ -99,65 +130,23 @@ export default function OrdersPage() {
             size="sm"
             onClick={(e) => {
               e.stopPropagation();
-              setSelectedOrder(order);
-              setIsDetailModalOpen(true);
+              handleViewDetail(order.id);
             }}
           >
             <FontAwesomeIcon icon={faEye} className="h-4 w-4" />
-          </Button>
-          <Button
-            variant="ghost"
-            size="sm"
-            onClick={(e) => {
-              e.stopPropagation();
-              setSelectedOrder(order);
-              setIsEditMode(true);
-              setIsFormModalOpen(true);
-            }}
-          >
-            <FontAwesomeIcon icon={faEdit} className="h-4 w-4" />
           </Button>
         </div>
       ),
     },
   ];
 
-  const handleCloseForm = () => {
-    setIsFormModalOpen(false);
-    setIsEditMode(false);
-    setSelectedOrder(null);
-  };
-
-  const handleSubmitForm = (data: Partial<Order>) => {
-    if (isEditMode && selectedOrder) {
-      // Update existing order
-      setOrders(
-        orders.map((order) =>
-          order.id === selectedOrder.id
-            ? { ...order, ...data, updatedAt: new Date().toISOString() }
-            : order,
-        ),
-      );
-    } else {
-      // Add new order
-      const newOrder: Order = {
-        id: Math.max(...orders.map((o) => o.id)) + 1,
-        orderNumber: `ORD-${Math.max(...orders.map((o) => o.id)) + 1}`,
-        ...data,
-        createdAt: new Date().toISOString(),
-        updatedAt: new Date().toISOString(),
-        timeline: [
-          {
-            status: data.status || "PENDING",
-            description: "Đơn hàng đã được tạo",
-            timestamp: new Date().toISOString(),
-          },
-        ],
-      } as Order;
-      setOrders([newOrder, ...orders]);
-    }
-    handleCloseForm();
-  };
+  if (isLoading) {
+    return (
+      <div className="flex h-96 items-center justify-center">
+        <p className="text-gray-500">Đang tải dữ liệu...</p>
+      </div>
+    );
+  }
 
   return (
     <div className="w-full space-y-6">
@@ -168,23 +157,18 @@ export default function OrdersPage() {
             Quản lý đơn hàng
           </h1>
           <p className="mt-1 text-sm text-gray-500">
-            Tổng {orders.length} đơn hàng
+            Tổng {filteredOrders.length} đơn hàng
           </p>
         </div>
-        <Button
-          onClick={() => {
-            setIsEditMode(false);
-            setIsFormModalOpen(true);
-          }}
-        >
-          <FontAwesomeIcon icon={faPlus} className="mr-2 h-4 w-4" />
-          Tạo đơn hàng
-        </Button>
       </div>
 
       {/* Filters */}
       <div className="flex flex-wrap gap-4 rounded-lg bg-white p-4 shadow">
-        <select className="rounded-lg border border-gray-300 px-4 py-2 text-sm focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500">
+        <select
+          value={statusFilter}
+          onChange={(e) => setStatusFilter(e.target.value)}
+          className="rounded-lg border border-gray-300 px-4 py-2 text-sm focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
+        >
           <option value="">Tất cả trạng thái</option>
           {orderStatuses.map((status) => (
             <option key={status.value} value={status.value}>
@@ -192,22 +176,15 @@ export default function OrdersPage() {
             </option>
           ))}
         </select>
-        <input
-          type="date"
-          className="rounded-lg border border-gray-300 px-4 py-2 text-sm focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
-        />
-        <span className="flex items-center text-sm text-gray-500">đến</span>
-        <input
-          type="date"
-          className="rounded-lg border border-gray-300 px-4 py-2 text-sm focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
-        />
-        <Button variant="outline">Xuất Excel</Button>
+        <Button variant="outline" onClick={refreshOrders}>
+          Làm mới
+        </Button>
       </div>
 
       {/* Data Table */}
       <DataTable
         columns={columns}
-        data={orders}
+        data={filteredOrders}
         keyExtractor={(order) => order.id}
         searchable
         itemsPerPage={10}
@@ -217,15 +194,62 @@ export default function OrdersPage() {
       {/* Order Detail Modal */}
       <Modal
         isOpen={isDetailModalOpen}
-        onClose={() => {
-          setIsDetailModalOpen(false);
-          setSelectedOrder(null);
-        }}
-        title={`Chi tiết đơn hàng ${selectedOrder?.orderNumber}`}
+        onClose={handleCloseModal}
+        title={`Chi tiết đơn hàng #${selectedOrderId?.slice(-8) || ""}`}
         size="lg"
       >
-        {selectedOrder && (
+        {isLoadingDetail ? (
+          <div className="flex h-64 items-center justify-center">
+            <svg
+              className="h-8 w-8 animate-spin text-gray-400"
+              xmlns="http://www.w3.org/2000/svg"
+              fill="none"
+              viewBox="0 0 24 24"
+            >
+              <circle
+                className="opacity-25"
+                cx="12"
+                cy="12"
+                r="10"
+                stroke="currentColor"
+                strokeWidth="4"
+              ></circle>
+              <path
+                className="opacity-75"
+                fill="currentColor"
+                d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"
+              ></path>
+            </svg>
+          </div>
+        ) : orderDetail ? (
           <div className="space-y-6">
+            {/* Order Info */}
+            <div>
+              <h4 className="mb-3 font-semibold text-gray-900">
+                Thông tin đơn hàng
+              </h4>
+              <div className="space-y-2 rounded-lg bg-gray-50 p-4 text-sm">
+                <p>
+                  <span className="font-medium">Mã đơn:</span> #
+                  {orderDetail.id.slice(-8)}
+                </p>
+                <p>
+                  <span className="font-medium">Ngày đặt:</span>{" "}
+                  {new Date(orderDetail.orderDate).toLocaleString("vi-VN")}
+                </p>
+                <p>
+                  <span className="font-medium">Trạng thái:</span>{" "}
+                  <StatusBadge status={orderDetail.status} variant="order" />
+                </p>
+                <p>
+                  <span className="font-medium">Tổng tiền:</span>{" "}
+                  <span className="font-semibold">
+                    {formatPrice(orderDetail.totalAmount)}
+                  </span>
+                </p>
+              </div>
+            </div>
+
             {/* Customer Info */}
             <div>
               <h4 className="mb-3 font-semibold text-gray-900">
@@ -233,151 +257,85 @@ export default function OrdersPage() {
               </h4>
               <div className="space-y-2 rounded-lg bg-gray-50 p-4 text-sm">
                 <p>
-                  <span className="font-medium">Tên:</span>{" "}
-                  {selectedOrder.customerName}
-                </p>
-                <p>
                   <span className="font-medium">Email:</span>{" "}
-                  {selectedOrder.customerEmail}
+                  {orderDetail.email}
                 </p>
                 <p>
                   <span className="font-medium">Số điện thoại:</span>{" "}
-                  {selectedOrder.customerPhone}
+                  {orderDetail.phone}
                 </p>
                 <p>
                   <span className="font-medium">Địa chỉ:</span>{" "}
-                  {selectedOrder.shippingAddress}
+                  {orderDetail.location}
                 </p>
-                {selectedOrder.note && (
-                  <p>
-                    <span className="font-medium">Ghi chú:</span>{" "}
-                    {selectedOrder.note}
-                  </p>
-                )}
               </div>
             </div>
 
-            {/* Products */}
+            {/* Note */}
+            {orderDetail.note && (
+              <div>
+                <h4 className="mb-3 font-semibold text-gray-900">Ghi chú</h4>
+                <div className="rounded-lg bg-gray-50 p-4 text-sm">
+                  <p>{orderDetail.note}</p>
+                </div>
+              </div>
+            )}
+
+            {/* Items */}
             <div>
               <h4 className="mb-3 font-semibold text-gray-900">Sản phẩm</h4>
               <div className="space-y-3">
-                {selectedOrder.products.map((product, index) => (
-                  <div
-                    key={index}
-                    className="flex items-center gap-4 rounded-lg border border-gray-200 p-3"
-                  >
-                    <div className="relative h-16 w-16 flex-shrink-0 overflow-hidden rounded-lg bg-gray-100">
-                      {/* eslint-disable-next-line @next/next/no-img-element */}
-                      <img
-                        src={product.image}
-                        alt={product.productName}
-                        className="h-full w-full object-cover"
-                      />
+                {orderDetail.items && orderDetail.items.length > 0 ? (
+                  orderDetail.items.map((item) => (
+                    <div
+                      key={item.id}
+                      className="flex items-center gap-4 rounded-lg border border-gray-200 p-3"
+                    >
+                      <div className="relative h-16 w-16 flex-shrink-0 overflow-hidden rounded-lg bg-gray-100">
+                        <Image
+                          src={item.imgUrl}
+                          alt={item.variantName || ""}
+                          fill
+                          className="object-cover"
+                        />
+                      </div>
+                      <div className="flex-1">
+                        <p className="font-medium text-gray-900">
+                          {item.variantName || ""}
+                        </p>
+                        {/* <p className="text-sm text-gray-500">
+                          {item.variantName}
+                        </p> */}
+                      </div>
+                      <div className="text-right">
+                        <p className="text-sm text-gray-600">
+                          x{item.quantity}
+                        </p>
+                        <p className="font-semibold text-gray-900">
+                          {formatPrice(item.price * item.quantity)}
+                        </p>
+                      </div>
                     </div>
-                    <div className="flex-1">
-                      <p className="font-medium text-gray-900">
-                        {product.productName}
-                      </p>
-                      <p className="text-sm text-gray-500">{product.variant}</p>
-                    </div>
-                    <div className="text-right">
-                      <p className="text-sm text-gray-600">
-                        x{product.quantity}
-                      </p>
-                      <p className="font-semibold text-gray-900">
-                        {formatPrice(product.total)}
-                      </p>
-                    </div>
-                  </div>
-                ))}
-              </div>
-            </div>
-
-            {/* Payment Summary */}
-            <div>
-              <h4 className="mb-3 font-semibold text-gray-900">
-                Thông tin thanh toán
-              </h4>
-              <div className="space-y-2 rounded-lg bg-gray-50 p-4 text-sm">
-                <div className="flex justify-between">
-                  <span>Tạm tính:</span>
-                  <span>{formatPrice(selectedOrder.subtotal)}</span>
-                </div>
-                <div className="flex justify-between">
-                  <span>Phí vận chuyển:</span>
-                  <span>{formatPrice(selectedOrder.shippingFee)}</span>
-                </div>
-                {selectedOrder.discount > 0 && (
-                  <div className="flex justify-between text-green-600">
-                    <span>Giảm giá:</span>
-                    <span>-{formatPrice(selectedOrder.discount)}</span>
-                  </div>
+                  ))
+                ) : (
+                  <p className="text-sm text-gray-500">Không có sản phẩm</p>
                 )}
-                <div className="flex justify-between border-t border-gray-300 pt-2 text-base font-semibold">
-                  <span>Tổng cộng:</span>
-                  <span>{formatPrice(selectedOrder.total)}</span>
-                </div>
               </div>
             </div>
 
-            {/* Timeline */}
-            <div>
-              <h4 className="mb-3 font-semibold text-gray-900">
-                Lịch sử đơn hàng
-              </h4>
-              <div className="space-y-3">
-                {selectedOrder.timeline.map((item, index) => (
-                  <div key={index} className="flex gap-3">
-                    <div className="flex flex-col items-center">
-                      <div className="h-3 w-3 rounded-full bg-blue-500" />
-                      {index < selectedOrder.timeline.length - 1 && (
-                        <div className="w-0.5 flex-1 bg-gray-300" />
-                      )}
-                    </div>
-                    <div className="flex-1 pb-4">
-                      <p className="text-sm font-medium text-gray-900">
-                        {item.description}
-                      </p>
-                      <p className="text-xs text-gray-500">
-                        {new Date(item.timestamp).toLocaleString("vi-VN")}
-                      </p>
-                    </div>
-                  </div>
-                ))}
+            {/* Total */}
+            <div className="rounded-lg bg-gray-50 p-4">
+              <div className="flex justify-between border-t border-gray-300 pt-2 text-base font-semibold">
+                <span>Tổng cộng:</span>
+                <span>{formatPrice(orderDetail.totalAmount)}</span>
               </div>
             </div>
+          </div>
+        ) : (
+          <div className="flex h-64 items-center justify-center">
+            <p className="text-gray-500">Không tìm thấy thông tin đơn hàng</p>
           </div>
         )}
-      </Modal>
-
-      {/* Form Modal (Add/Edit) */}
-      <Modal
-        isOpen={isFormModalOpen}
-        onClose={handleCloseForm}
-        title={isEditMode ? "Sửa đơn hàng" : "Tạo đơn hàng mới"}
-        size="xl"
-        footer={
-          <div className="flex justify-end gap-3">
-            <Button variant="outline" onClick={handleCloseForm}>
-              Hủy
-            </Button>
-            <Button
-              onClick={() => {
-                const form = document.querySelector(
-                  'form[data-form="order"]',
-                ) as HTMLFormElement;
-                if (form) form.requestSubmit();
-              }}
-            >
-              {isEditMode ? "Cập nhật" : "Tạo đơn"}
-            </Button>
-          </div>
-        }
-      >
-        <OrderForm
-          order={isEditMode ? selectedOrder : null}
-          onSubmit={handleSubmitForm}
-        />
       </Modal>
     </div>
   );

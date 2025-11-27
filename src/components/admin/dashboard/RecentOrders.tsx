@@ -1,18 +1,30 @@
 "use client";
 
-import { cn } from "@/lib/utils";
+import { StatusBadge } from "@/components/admin/shared/StatusBadge";
+import { useAdmin } from "@/contexts/AdminContext";
+import { formatPrice } from "@/lib/utils";
 import Link from "next/link";
-
-import { recentOrders } from "@/data/admin/recent-orders";
-
-const statusColors = {
-  PENDING: "bg-yellow-100 text-yellow-800",
-  SHIPPING: "bg-blue-100 text-blue-800",
-  SUCCESS: "bg-green-100 text-green-800",
-  CANCELLED: "bg-red-100 text-red-800",
-};
+import { useMemo } from "react";
 
 export function RecentOrders() {
+  const { orders, isLoading } = useAdmin();
+
+  const recentOrders = useMemo(() => {
+    return [...orders]
+      .sort((a, b) => {
+        return (
+          new Date(b.createdDate).getTime() - new Date(a.createdDate).getTime()
+        );
+      })
+      .slice(0, 5);
+  }, [orders]);
+
+  if (isLoading) {
+    return (
+      <div className="h-96 animate-pulse rounded-lg bg-white p-6 shadow" />
+    );
+  }
+
   return (
     <div className="rounded-lg bg-white p-6 shadow">
       <div className="mb-4 flex items-center justify-between">
@@ -32,68 +44,80 @@ export function RecentOrders() {
         </Link>
       </div>
 
-      <div className="overflow-hidden">
-        <table className="min-w-full divide-y divide-gray-200">
-          <thead>
-            <tr>
-              <th className="px-3 py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-500">
-                Mã đơn
-              </th>
-              <th className="px-3 py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-500">
-                Khách hàng
-              </th>
-              <th className="px-3 py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-500">
-                Ngày
-              </th>
-              <th className="px-3 py-3 text-right text-xs font-medium uppercase tracking-wider text-gray-500">
-                Tổng tiền
-              </th>
-              <th className="px-3 py-3 text-center text-xs font-medium uppercase tracking-wider text-gray-500">
-                Trạng thái
-              </th>
-            </tr>
-          </thead>
-          <tbody className="divide-y divide-gray-200">
-            {recentOrders.map((order) => (
-              <tr key={order.id} className="transition-colors hover:bg-gray-50">
-                <td className="whitespace-nowrap px-3 py-4">
-                  <Link
-                    href={`/admin/orders/${order.id}`}
-                    className="text-sm font-medium text-blue-600 hover:text-blue-700"
-                  >
-                    #{order.id}
-                  </Link>
-                </td>
-                <td className="whitespace-nowrap px-3 py-4">
-                  <p className="text-sm font-medium text-gray-900">
-                    {order.customer}
-                  </p>
-                </td>
-                <td className="whitespace-nowrap px-3 py-4">
-                  <p className="text-sm text-gray-500">{order.date}</p>
-                </td>
-                <td className="whitespace-nowrap px-3 py-4 text-right">
-                  <p className="text-sm font-medium text-gray-900">
-                    {order.total} ₫
-                  </p>
-                </td>
-                <td className="whitespace-nowrap px-3 py-4">
-                  <div className="flex justify-center">
-                    <span
-                      className={cn(
-                        "inline-flex rounded-full px-2.5 py-1 text-xs font-medium",
-                        statusColors[order.status as keyof typeof statusColors],
-                      )}
-                    >
-                      {order.statusText}
-                    </span>
-                  </div>
-                </td>
+      {recentOrders.length > 0 ? (
+        <div className="overflow-hidden">
+          <table className="min-w-full divide-y divide-gray-200">
+            <thead>
+              <tr>
+                <th className="px-3 py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-500">
+                  Mã đơn
+                </th>
+                <th className="px-3 py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-500">
+                  Địa chỉ
+                </th>
+                <th className="px-3 py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-500">
+                  Ngày
+                </th>
+                <th className="px-3 py-3 text-right text-xs font-medium uppercase tracking-wider text-gray-500">
+                  Tổng tiền
+                </th>
+                <th className="px-3 py-3 text-center text-xs font-medium uppercase tracking-wider text-gray-500">
+                  Trạng thái
+                </th>
               </tr>
-            ))}
-          </tbody>
-        </table>
-      </div>
+            </thead>
+            <tbody className="divide-y divide-gray-200">
+              {recentOrders.map((order) => (
+                <tr
+                  key={order.id}
+                  className="transition-colors hover:bg-gray-50"
+                >
+                  <td className="whitespace-nowrap px-3 py-4">
+                    <Link
+                      href={`/admin/orders`}
+                      className="text-sm font-medium text-blue-600 hover:text-blue-700"
+                      onClick={(e) => {
+                        e.preventDefault();
+                        // You can add navigation logic here if needed
+                      }}
+                    >
+                      #{order.id.slice(-8)}
+                    </Link>
+                  </td>
+                  <td className="px-3 py-4">
+                    <p className="max-w-xs truncate text-sm text-gray-900">
+                      {order.addressDetail || "Không có địa chỉ"}
+                    </p>
+                  </td>
+                  <td className="whitespace-nowrap px-3 py-4">
+                    <p className="text-sm text-gray-500">
+                      {new Date(order.createdDate).toLocaleDateString("vi-VN", {
+                        day: "2-digit",
+                        month: "2-digit",
+                        year: "numeric",
+                      })}
+                    </p>
+                  </td>
+                  <td className="whitespace-nowrap px-3 py-4 text-right">
+                    <p className="text-sm font-medium text-gray-900">
+                      {formatPrice(order.totalAmount)}
+                    </p>
+                  </td>
+                  <td className="whitespace-nowrap px-3 py-4">
+                    <div className="flex justify-center">
+                      <StatusBadge status={order.status} variant="order" />
+                    </div>
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      ) : (
+        <div className="flex h-48 items-center justify-center">
+          <p className="text-gray-500">Chưa có đơn hàng</p>
+        </div>
+      )}
     </div>
   );
 }

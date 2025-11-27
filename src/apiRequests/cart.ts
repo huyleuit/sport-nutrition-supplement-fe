@@ -6,7 +6,7 @@ import {
   OrderContentResType,
   OrderRequestResType,
 } from "@/types/cart";
-import { OrderHistoryResType } from "@/types/order-history";
+import { OrderDetailResType, OrderHistoryResType } from "@/types/order-history";
 
 const cartApiRequests = {
   // Cart
@@ -22,6 +22,11 @@ const cartApiRequests = {
   createOrder: () => http.post<OrderRequestResType>("/order/create", {}),
   addOrderContent: (body: OrderContentBodyType) =>
     http.post<OrderContentResType>("/orders", body),
+
+  // Admin
+  getAllOrdersAdmin: () =>
+    http.get<OrderHistoryResType>(`/orders?_sort=orderDate&_order=DESC`),
+  getDetailOrder: (id: string) => http.get<OrderDetailResType>(`/orders/${id}`),
 };
 
 export default cartApiRequests;

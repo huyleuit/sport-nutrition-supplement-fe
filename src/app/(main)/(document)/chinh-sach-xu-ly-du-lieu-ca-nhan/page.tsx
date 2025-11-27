@@ -92,8 +92,8 @@ export default function page() {
       <p>
         Để thực hiện các quyền này, vui lòng liên hệ với chúng tôi qua email:{" "}
         <strong>
-          <Link href="mailto:4hprotein@gmail.com" target="_blank">
-            4hprotein@gmail.com
+          <Link href="mailto:support@4hprotein.store" target="_blank">
+            support@4hprotein.store
           </Link>
         </strong>
         .
@@ -123,8 +123,8 @@ export default function page() {
         sách thu thập và xử lý dữ liệu cá nhân của chúng tôi, xin vui lòng liên
         hệ qua email:{" "}
         <strong>
-          <Link href="mailto:4hprotein@gmail.com" target="_blank">
-            4hprotein@gmail.com
+          <Link href="mailto:support@4hprotein.store" target="_blank">
+            support@4hprotein.store
           </Link>
         </strong>{" "}
         hoặc hotline:{" "}

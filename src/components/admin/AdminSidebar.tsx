@@ -3,18 +3,12 @@
 import { cn } from "@/lib/utils";
 import {
   faChartLine,
-  faBox,
   faShoppingCart,
-  faUsers,
-  faTags,
-  faFileAlt,
-  faChartBar,
-  faCog,
 } from "@fortawesome/free-solid-svg-icons";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
+import Image from "next/image";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import Image from "next/image";
 
 const menuItems = [
   {
@@ -23,39 +17,9 @@ const menuItems = [
     icon: faChartLine,
   },
   {
-    name: "Sản phẩm",
-    href: "/admin/products",
-    icon: faBox,
-  },
-  {
     name: "Đơn hàng",
     href: "/admin/orders",
     icon: faShoppingCart,
-  },
-  {
-    name: "Khách hàng",
-    href: "/admin/customers",
-    icon: faUsers,
-  },
-  {
-    name: "Khuyến mãi",
-    href: "/admin/promotions",
-    icon: faTags,
-  },
-  {
-    name: "Nội dung",
-    href: "/admin/content",
-    icon: faFileAlt,
-  },
-  {
-    name: "Báo cáo",
-    href: "/admin/reports",
-    icon: faChartBar,
-  },
-  {
-    name: "Cài đặt",
-    href: "/admin/settings",
-    icon: faCog,
   },
 ];
 
@@ -105,7 +69,9 @@ export function AdminSidebar() {
             <p className="truncate text-sm font-medium text-gray-900">
               Admin User
             </p>
-            <p className="truncate text-xs text-gray-500">admin@example.com</p>
+            <p className="truncate text-xs text-gray-500">
+              admin@4hprotein.store
+            </p>
           </div>
         </div>
       </div>
