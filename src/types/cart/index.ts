@@ -58,12 +58,13 @@ export type OrderContentBodyType = {
 };
 
 export type OrderContentResType = {
-  orderId: number;
-  createdDate: string;
-  totalAmount: number;
-  note: string | null;
-  status: string;
-  addressDetail: string;
-  shipmentCharges: number | null;
-  redirectUrl: string;
+  // orderId: number;
+  // createdDate: string;
+  // totalAmount: number;
+  // note: string | null;
+  // status: string;
+  // addressDetail: string;
+  // shipmentCharges: number | null;
+  // redirectUrl: string;
+  payUrl: string;
 };

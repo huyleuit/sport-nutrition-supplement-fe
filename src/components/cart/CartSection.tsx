@@ -57,7 +57,7 @@ export const CartSection = () => {
           method: paymentMethod,
           note,
         });
-        window.location.href = result.payload.redirectUrl;
+        window.location.href = result.payload.payUrl;
       } catch (error) {
         handleErrorApi({ error });
       } finally {

@@ -4,7 +4,16 @@ import { CustomCarousel } from "../common/CustomCarousel";
 import { CarouselItem } from "../ui/carousel";
 
 export const ProductImages = ({ images }: { images: string[] }) => {
-  if (images?.length === 0) return null;
+  if (images?.length === 0)
+    return (
+      <div className={cn("flex w-full justify-center lg:w-[22.5rem]")}>
+        <div
+          className={cn(
+            "flex aspect-square w-full items-center justify-center overflow-hidden rounded-[0.625rem] border border-solid border-[#333]/30 xs:size-[22.5rem]",
+          )}
+        ></div>
+      </div>
+    );
   if (images?.length === 1) {
     return (
       <div className={cn("flex w-full justify-center lg:w-[22.5rem]")}>
