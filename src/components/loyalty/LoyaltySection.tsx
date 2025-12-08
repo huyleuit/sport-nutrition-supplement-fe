@@ -20,7 +20,6 @@ import {
 } from "@/lib/loyaltyApi";
 import { Web3ErrorBoundary } from "./Web3ErrorBoundary";
 import { CertificatesSection } from "./CertificatesSection";
-import { IPFSUploader } from "./IPFSUploader";
 
 // Define data types
 interface Transaction {
@@ -33,23 +32,6 @@ interface Transaction {
   blockNumber?: number;
 }
 
-// Fallback rewards khi chưa load được từ blockchain
-const FALLBACK_REWARDS: RewardWithIPFS[] = [
-  {
-    id: 1,
-    cost: 100,
-    metadata: {
-      name: "Voucher giảm 10%",
-      description: "Áp dụng cho đơn hàng từ 500.000đ",
-      category: "discount",
-      value_vnd: 50000,
-    },
-    imageUrl: "",
-    metadataCID: "",
-    imageCID: "",
-  },
-];
-
 export function LoyaltySection() {
   const [account, setAccount] = useState<string | null>(null);
   const [balance, setBalance] = useState<number>(0);
@@ -61,22 +43,21 @@ export function LoyaltySection() {
   const [isRegistered, setIsRegistered] = useState<boolean>(false);
   const [backendConnected, setBackendConnected] = useState<boolean>(false);
   const [lastCertificate, setLastCertificate] = useState<string | null>(null);
-  const [rewards, setRewards] = useState<RewardWithIPFS[]>(FALLBACK_REWARDS);
-  const [isLoadingRewards, setIsLoadingRewards] = useState(false);
+  const [rewards, setRewards] = useState<RewardWithIPFS[]>([]);
+  const [isLoadingRewards, setIsLoadingRewards] = useState(true);
 
   // Load rewards from blockchain
   const loadRewardsFromBlockchain = useCallback(async () => {
-    if (!window.ethereum) return;
+    if (!window.ethereum) {
+      setIsLoadingRewards(false);
+      return;
+    }
 
     setIsLoadingRewards(true);
     try {
       const blockchainRewards = await getAllRewards(10);
-      if (blockchainRewards.length > 0) {
-        setRewards(blockchainRewards);
-        console.log("Loaded rewards from blockchain:", blockchainRewards);
-      } else {
-        console.log("No rewards found on blockchain, using fallback");
-      }
+      setRewards(blockchainRewards);
+      console.log("Loaded rewards from blockchain:", blockchainRewards);
     } catch (error) {
       console.error("Error loading rewards from blockchain:", error);
     } finally {
@@ -568,122 +549,163 @@ export function LoyaltySection() {
               </span>
             )}
           </div>
-          <div className={cn("grid gap-4 md:grid-cols-2")}>
-            {rewards.map((reward) => {
-              const rewardName =
-                reward.metadata?.name || `Reward #${reward.id}`;
-              const rewardDesc =
-                reward.metadata?.description || "Phần thưởng từ blockchain";
-              const rewardIcon = reward.imageUrl ? null : "🎁";
 
-              return (
-                <div
-                  key={reward.id}
-                  className={cn(
-                    "rounded-[0.5em] border border-gray-200 p-[1em]",
-                    "transition-all hover:shadow-md",
-                  )}
-                >
-                  <div className={cn("flex items-start gap-3")}>
-                    <div
-                      className={cn(
-                        "flex h-[3em] w-[3em] items-center justify-center overflow-hidden",
-                        "rounded-[0.5em] bg-gradient-to-br from-purple-100 to-blue-100",
-                        "text-[1.5em]",
-                      )}
-                    >
-                      {reward.imageUrl ? (
-                        <img
-                          src={reward.imageUrl}
-                          alt={rewardName}
-                          className={cn("h-full w-full object-cover")}
-                        />
-                      ) : (
-                        rewardIcon
-                      )}
-                    </div>
-                    <div className={cn("flex-1")}>
-                      <h4
-                        className={cn("text-[1em] font-semibold text-gray-800")}
-                      >
-                        {rewardName}
-                      </h4>
-                      <p
-                        className={cn(
-                          "mt-[0.25em] text-[0.85em] text-gray-600",
-                        )}
-                      >
-                        {rewardDesc}
-                      </p>
-                      {reward.metadataCID && (
-                        <p
-                          className={cn(
-                            "mt-[0.25em] text-[0.7em] text-blue-500",
-                          )}
-                        >
-                          IPFS: {reward.metadataCID.substring(0, 12)}...
-                        </p>
-                      )}
+          {/* Loading state */}
+          {isLoadingRewards && (
+            <div className={cn("flex items-center justify-center py-8")}>
+              <svg
+                className={cn("h-8 w-8 animate-spin text-purple-600")}
+                xmlns="http://www.w3.org/2000/svg"
+                fill="none"
+                viewBox="0 0 24 24"
+              >
+                <circle
+                  className="opacity-25"
+                  cx="12"
+                  cy="12"
+                  r="10"
+                  stroke="currentColor"
+                  strokeWidth="4"
+                ></circle>
+                <path
+                  className="opacity-75"
+                  fill="currentColor"
+                  d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"
+                ></path>
+              </svg>
+            </div>
+          )}
+
+          {/* Empty state */}
+          {!isLoadingRewards && rewards.length === 0 && (
+            <div className={cn("py-8 text-center")}>
+              <div className={cn("text-[3em]")}>🎁</div>
+              <p className={cn("mt-2 text-gray-500")}>
+                Chưa có phần thưởng nào
+              </p>
+            </div>
+          )}
+
+          {/* Rewards grid */}
+          <div className={cn("grid gap-4 md:grid-cols-2")}>
+            {!isLoadingRewards &&
+              rewards.map((reward) => {
+                const rewardName =
+                  reward.metadata?.name || `Reward #${reward.id}`;
+                const rewardDesc =
+                  reward.metadata?.description || "Phần thưởng từ blockchain";
+                const rewardIcon = reward.imageUrl ? null : "🎁";
+
+                return (
+                  <div
+                    key={reward.id}
+                    className={cn(
+                      "rounded-[0.5em] border border-gray-200 p-[1em]",
+                      "transition-all hover:shadow-md",
+                    )}
+                  >
+                    <div className={cn("flex items-start gap-3")}>
                       <div
                         className={cn(
-                          "mt-[0.75em] flex items-center justify-between",
+                          "flex h-[3em] w-[3em] items-center justify-center overflow-hidden",
+                          "rounded-[0.5em] bg-gradient-to-br from-purple-100 to-blue-100",
+                          "text-[1.5em]",
                         )}
                       >
-                        <span
+                        {reward.imageUrl ? (
+                          <img
+                            src={reward.imageUrl}
+                            alt={rewardName}
+                            className={cn("h-full w-full object-cover")}
+                          />
+                        ) : (
+                          rewardIcon
+                        )}
+                      </div>
+                      <div className={cn("flex-1")}>
+                        <h4
                           className={cn(
-                            "text-[0.9em] font-bold text-purple-600",
+                            "text-[1em] font-semibold text-gray-800",
                           )}
                         >
-                          {reward.cost.toLocaleString()} điểm
-                        </span>
-                        <Button
-                          onClick={() => handleRedeem(reward)}
-                          disabled={
-                            !account ||
-                            balance < reward.cost ||
-                            isRedeeming === String(reward.id)
-                          }
-                          size="sm"
+                          {rewardName}
+                        </h4>
+                        <p
                           className={cn(
-                            "bg-gradient-to-r from-purple-600 to-blue-600",
-                            "text-[0.8em] font-semibold",
-                            "disabled:from-gray-300 disabled:to-gray-400",
+                            "mt-[0.25em] text-[0.85em] text-gray-600",
                           )}
                         >
-                          {isRedeeming === String(reward.id) ? (
-                            <span className={cn("flex items-center gap-2")}>
-                              <svg
-                                className={cn("h-[1em] w-[1em] animate-spin")}
-                                xmlns="http://www.w3.org/2000/svg"
-                                fill="none"
-                                viewBox="0 0 24 24"
-                              >
-                                <circle
-                                  className="opacity-25"
-                                  cx="12"
-                                  cy="12"
-                                  r="10"
-                                  stroke="currentColor"
-                                  strokeWidth="4"
-                                ></circle>
-                                <path
-                                  className="opacity-75"
-                                  fill="currentColor"
-                                  d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"
-                                ></path>
-                              </svg>
-                              Đang xử lý...
-                            </span>
-                          ) : (
-                            "Đổi ngay"
+                          {rewardDesc}
+                        </p>
+                        {reward.metadataCID && (
+                          <p
+                            className={cn(
+                              "mt-[0.25em] text-[0.7em] text-blue-500",
+                            )}
+                          >
+                            IPFS: {reward.metadataCID.substring(0, 12)}...
+                          </p>
+                        )}
+                        <div
+                          className={cn(
+                            "mt-[0.75em] flex items-center justify-between",
                           )}
-                        </Button>
+                        >
+                          <span
+                            className={cn(
+                              "text-[0.9em] font-bold text-purple-600",
+                            )}
+                          >
+                            {reward.cost.toLocaleString()} điểm
+                          </span>
+                          <Button
+                            onClick={() => handleRedeem(reward)}
+                            disabled={
+                              !account ||
+                              balance < reward.cost ||
+                              isRedeeming === String(reward.id)
+                            }
+                            size="sm"
+                            className={cn(
+                              "bg-gradient-to-r from-purple-600 to-blue-600",
+                              "text-[0.8em] font-semibold",
+                              "disabled:from-gray-300 disabled:to-gray-400",
+                            )}
+                          >
+                            {isRedeeming === String(reward.id) ? (
+                              <span className={cn("flex items-center gap-2")}>
+                                <svg
+                                  className={cn("h-[1em] w-[1em] animate-spin")}
+                                  xmlns="http://www.w3.org/2000/svg"
+                                  fill="none"
+                                  viewBox="0 0 24 24"
+                                >
+                                  <circle
+                                    className="opacity-25"
+                                    cx="12"
+                                    cy="12"
+                                    r="10"
+                                    stroke="currentColor"
+                                    strokeWidth="4"
+                                  ></circle>
+                                  <path
+                                    className="opacity-75"
+                                    fill="currentColor"
+                                    d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"
+                                  ></path>
+                                </svg>
+                                Đang xử lý...
+                              </span>
+                            ) : (
+                              "Đổi ngay"
+                            )}
+                          </Button>
+                        </div>
                       </div>
                     </div>
                   </div>
-                </div>
-              );
-            })}
+                );
+              })}
           </div>
         </div>
 
@@ -839,9 +861,6 @@ export function LoyaltySection() {
 
         {/* Certificates Section - IPFS Integration */}
         {account && <CertificatesSection account={account} />}
-
-        {/* IPFS Uploader Section */}
-        {account && <IPFSUploader account={account} />}
 
         {/* Backend Status Indicator */}
         {account && (
