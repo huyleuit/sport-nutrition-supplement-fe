@@ -6,6 +6,13 @@ import {
   formatUnits,
   parseUnits,
 } from "ethers";
+import {
+  fetchRewardMetadata,
+  fetchCertificateMetadata,
+  getIPFSImageUrl,
+  type RewardMetadata,
+  type CertificateMetadata,
+} from "./ipfs";
 
 // Cache for balance to reduce contract calls
 let balanceCache: {
@@ -427,3 +434,393 @@ export async function getTransactionHistory(
     throw error;
   }
 }
+
+// ============================================
+// IPFS Integration Functions
+// ============================================
+
+export interface RewardWithIPFS {
+  id: number;
+  cost: number;
+  metadata: RewardMetadata | null;
+  imageUrl: string;
+  metadataCID: string;
+  imageCID: string;
+}
+
+export interface CustomerCertificate {
+  cid: string;
+  metadata: CertificateMetadata | null;
+  index: number;
+}
+
+/**
+ * Get all available rewards from blockchain
+ * Scans reward IDs 1-10 (configurable) to find active rewards
+ * @param maxRewardId - Maximum reward ID to check (default: 10)
+ * @returns Array of rewards with IPFS metadata
+ */
+export async function getAllRewards(
+  maxRewardId: number = 10,
+): Promise<RewardWithIPFS[]> {
+  const rewards: RewardWithIPFS[] = [];
+
+  for (let i = 1; i <= maxRewardId; i++) {
+    const reward = await getRewardWithIPFS(i);
+    if (reward) {
+      rewards.push(reward);
+    }
+  }
+
+  return rewards;
+}
+
+/**
+ * Get reward details with IPFS metadata
+ * @param rewardId - Reward ID to fetch
+ * @returns Reward with metadata from IPFS
+ */
+export async function getRewardWithIPFS(
+  rewardId: number,
+): Promise<RewardWithIPFS | null> {
+  try {
+    if (!window.ethereum) {
+      throw new Error("MetaMask is not installed");
+    }
+
+    const provider = new BrowserProvider(window.ethereum);
+    const managerContract = new Contract(
+      CONTRACT_CONFIG.contracts.loyaltyManager as string,
+      CONTRACT_CONFIG.loyaltyManagerABI,
+      provider,
+    );
+
+    // Get reward cost - contract reverts if reward doesn't exist
+    let costWei: bigint;
+    try {
+      costWei = await managerContract.getRewardCost(rewardId);
+    } catch {
+      // Reward doesn't exist (contract reverts with "Reward not found")
+      return null;
+    }
+
+    if (costWei === BigInt(0)) {
+      return null; // Reward doesn't exist
+    }
+
+    // Get token decimals
+    const tokenContract = new Contract(
+      CONTRACT_CONFIG.contracts.loyaltyToken as string,
+      CONTRACT_CONFIG.loyaltyTokenABI,
+      provider,
+    );
+    const decimals = await tokenContract.decimals();
+    const cost = parseFloat(formatUnits(costWei, decimals));
+
+    // Get IPFS CIDs from contract
+    const metadataCID = await managerContract.getRewardMetadata(rewardId);
+    const imageCID = await managerContract.getRewardImage(rewardId);
+
+    // Fetch metadata from IPFS if CID exists
+    let metadata: RewardMetadata | null = null;
+    if (metadataCID && metadataCID !== "") {
+      metadata = await fetchRewardMetadata(metadataCID);
+    }
+
+    // Get image URL
+    const imageUrl = imageCID ? getIPFSImageUrl(imageCID) : "";
+
+    return {
+      id: rewardId,
+      cost,
+      metadata,
+      imageUrl,
+      metadataCID,
+      imageCID,
+    };
+  } catch (error) {
+    console.error("Error getting reward with IPFS:", error);
+    return null;
+  }
+}
+
+/**
+ * Get all certificates for a customer
+ * @param customerAddress - Customer wallet address
+ * @returns Array of certificates with IPFS metadata
+ */
+export async function getCustomerCertificates(
+  customerAddress: string,
+): Promise<CustomerCertificate[]> {
+  try {
+    if (!window.ethereum) {
+      throw new Error("MetaMask is not installed");
+    }
+
+    const provider = new BrowserProvider(window.ethereum);
+    const managerContract = new Contract(
+      CONTRACT_CONFIG.contracts.loyaltyManager as string,
+      CONTRACT_CONFIG.loyaltyManagerABI,
+      provider,
+    );
+
+    // Get all certificate CIDs from contract
+    const certificateCIDs: string[] =
+      await managerContract.getCustomerCertificates(customerAddress);
+
+    // Fetch metadata for each certificate
+    const certificates: CustomerCertificate[] = await Promise.all(
+      certificateCIDs.map(async (cid, index) => {
+        let metadata: CertificateMetadata | null = null;
+        if (cid && cid !== "") {
+          metadata = await fetchCertificateMetadata(cid);
+        }
+        return {
+          cid,
+          metadata,
+          index,
+        };
+      }),
+    );
+
+    return certificates;
+  } catch (error) {
+    console.error("Error getting customer certificates:", error);
+    return [];
+  }
+}
+
+/**
+ * Get certificate count for a customer
+ * @param customerAddress - Customer wallet address
+ * @returns Number of certificates
+ */
+export async function getCertificateCount(
+  customerAddress: string,
+): Promise<number> {
+  try {
+    if (!window.ethereum) {
+      throw new Error("MetaMask is not installed");
+    }
+
+    const provider = new BrowserProvider(window.ethereum);
+    const managerContract = new Contract(
+      CONTRACT_CONFIG.contracts.loyaltyManager as string,
+      CONTRACT_CONFIG.loyaltyManagerABI,
+      provider,
+    );
+
+    const count = await managerContract.getCertificateCount(customerAddress);
+    return Number(count);
+  } catch (error) {
+    console.error("Error getting certificate count:", error);
+    return 0;
+  }
+}
+
+// ============================================
+// ADMIN Functions (Owner Only)
+// ============================================
+
+/**
+ * Check if connected wallet is the contract owner
+ * @returns true if connected wallet is owner
+ */
+export async function isContractOwner(): Promise<boolean> {
+  try {
+    if (!window.ethereum) {
+      return false;
+    }
+
+    const provider = new BrowserProvider(window.ethereum);
+    const signer = await provider.getSigner();
+    const userAddress = await signer.getAddress();
+
+    const managerContract = new Contract(
+      CONTRACT_CONFIG.contracts.loyaltyManager as string,
+      CONTRACT_CONFIG.loyaltyManagerABI,
+      provider,
+    );
+
+    const ownerAddress = await managerContract.owner();
+    return userAddress.toLowerCase() === ownerAddress.toLowerCase();
+  } catch (error) {
+    console.error("Error checking contract owner:", error);
+    return false;
+  }
+}
+
+/**
+ * Create or update reward cost (owner only)
+ * @param rewardId - Reward ID to create/update
+ * @param cost - Cost in token units (not wei)
+ * @returns Transaction hash
+ */
+export async function setRewardCost(
+  rewardId: number,
+  cost: number,
+): Promise<string> {
+  try {
+    if (!window.ethereum) {
+      throw new Error("MetaMask is not installed");
+    }
+
+    const provider = new BrowserProvider(window.ethereum);
+    const signer = await provider.getSigner();
+
+    // Get decimals to convert cost to wei
+    const tokenContract = new Contract(
+      CONTRACT_CONFIG.contracts.loyaltyToken as string,
+      CONTRACT_CONFIG.loyaltyTokenABI,
+      provider,
+    );
+    const decimals = await tokenContract.decimals();
+    const costWei = parseUnits(cost.toString(), decimals);
+
+    const managerContract = new Contract(
+      CONTRACT_CONFIG.contracts.loyaltyManager as string,
+      CONTRACT_CONFIG.loyaltyManagerABI,
+      signer,
+    );
+
+    const tx = await managerContract.setRewardCost(rewardId, costWei);
+    const receipt = await tx.wait();
+    return receipt.hash;
+  } catch (error: any) {
+    console.error("Error setting reward cost:", error);
+    if (error.reason) throw new Error(error.reason);
+    throw error;
+  }
+}
+
+/**
+ * Set reward metadata CID (owner only)
+ * @param rewardId - Reward ID
+ * @param metadataCID - IPFS CID of metadata JSON
+ * @returns Transaction hash
+ */
+export async function setRewardMetadata(
+  rewardId: number,
+  metadataCID: string,
+): Promise<string> {
+  try {
+    if (!window.ethereum) {
+      throw new Error("MetaMask is not installed");
+    }
+
+    const provider = new BrowserProvider(window.ethereum);
+    const signer = await provider.getSigner();
+
+    const managerContract = new Contract(
+      CONTRACT_CONFIG.contracts.loyaltyManager as string,
+      CONTRACT_CONFIG.loyaltyManagerABI,
+      signer,
+    );
+
+    const tx = await managerContract.setRewardMetadata(rewardId, metadataCID);
+    const receipt = await tx.wait();
+    return receipt.hash;
+  } catch (error: any) {
+    console.error("Error setting reward metadata:", error);
+    if (error.reason) throw new Error(error.reason);
+    throw error;
+  }
+}
+
+/**
+ * Set reward image CID (owner only)
+ * @param rewardId - Reward ID
+ * @param imageCID - IPFS CID of image file
+ * @returns Transaction hash
+ */
+export async function setRewardImage(
+  rewardId: number,
+  imageCID: string,
+): Promise<string> {
+  try {
+    if (!window.ethereum) {
+      throw new Error("MetaMask is not installed");
+    }
+
+    const provider = new BrowserProvider(window.ethereum);
+    const signer = await provider.getSigner();
+
+    const managerContract = new Contract(
+      CONTRACT_CONFIG.contracts.loyaltyManager as string,
+      CONTRACT_CONFIG.loyaltyManagerABI,
+      signer,
+    );
+
+    const tx = await managerContract.setRewardImage(rewardId, imageCID);
+    const receipt = await tx.wait();
+    return receipt.hash;
+  } catch (error: any) {
+    console.error("Error setting reward image:", error);
+    if (error.reason) throw new Error(error.reason);
+    throw error;
+  }
+}
+
+/**
+ * Remove reward (owner only)
+ * @param rewardId - Reward ID to remove
+ * @returns Transaction hash
+ */
+export async function removeReward(rewardId: number): Promise<string> {
+  try {
+    if (!window.ethereum) {
+      throw new Error("MetaMask is not installed");
+    }
+
+    const provider = new BrowserProvider(window.ethereum);
+    const signer = await provider.getSigner();
+
+    const managerContract = new Contract(
+      CONTRACT_CONFIG.contracts.loyaltyManager as string,
+      CONTRACT_CONFIG.loyaltyManagerABI,
+      signer,
+    );
+
+    const tx = await managerContract.removeReward(rewardId);
+    const receipt = await tx.wait();
+    return receipt.hash;
+  } catch (error: any) {
+    console.error("Error removing reward:", error);
+    if (error.reason) throw new Error(error.reason);
+    throw error;
+  }
+}
+
+/**
+ * Create a complete reward with all data (owner only)
+ * This is a convenience function that calls setRewardCost, setRewardMetadata, and setRewardImage
+ * @param rewardId - Reward ID
+ * @param cost - Cost in token units
+ * @param metadataCID - IPFS CID of metadata JSON
+ * @param imageCID - IPFS CID of image file
+ * @returns Object with transaction hashes
+ */
+export async function createCompleteReward(
+  rewardId: number,
+  cost: number,
+  metadataCID: string,
+  imageCID: string,
+): Promise<{
+  costTxHash: string;
+  metadataTxHash: string;
+  imageTxHash: string;
+}> {
+  // First set the cost (creates the reward)
+  const costTxHash = await setRewardCost(rewardId, cost);
+
+  // Then set metadata
+  const metadataTxHash = await setRewardMetadata(rewardId, metadataCID);
+
+  // Finally set image
+  const imageTxHash = await setRewardImage(rewardId, imageCID);
+
+  return { costTxHash, metadataTxHash, imageTxHash };
+}
+
+// Re-export IPFS types for convenience
+export type { RewardMetadata, CertificateMetadata };

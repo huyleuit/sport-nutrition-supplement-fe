@@ -52,13 +52,26 @@ const LoginForm = () => {
     setLoading(true);
     setError(null);
     try {
+      console.log("[Login] Step 1: Calling login API...");
       const result = await authApiRequest.login(values);
+      console.log("[Login] Step 1 SUCCESS - Login response:", result);
+
       const token = result.payload.token;
+      console.log(
+        "[Login] Token received:",
+        token ? `${token.substring(0, 20)}...` : "NO TOKEN",
+      );
 
+      console.log("[Login] Step 2: Setting token...");
       await authApiRequest.setToken(token);
+      console.log("[Login] Step 2 SUCCESS - Token set");
 
+      console.log("[Login] Step 3: Fetching user profile...");
       const profileResult = await userApiRequest.profile();
+      console.log("[Login] Step 3 SUCCESS - Profile:", profileResult);
+
       setUser(profileResult.payload);
+      console.log("[Login] User set in context");
 
       toast({
         variant: "success",
@@ -68,6 +81,15 @@ const LoginForm = () => {
       router.push("/");
       router.refresh();
     } catch (error: any) {
+      console.error("[Login] ERROR caught:", error);
+      console.error("[Login] Error details:", {
+        message: error?.message,
+        status: error?.status,
+        payload: error?.payload,
+        name: error?.name,
+        stack: error?.stack,
+      });
+
       let errorMessage = "Đã có lỗi xảy ra. Vui lòng thử lại.";
 
       if (error?.status === 401 || error?.payload?.status === 401) {
@@ -84,6 +106,7 @@ const LoginForm = () => {
         errorMessage = "Không thể kết nối đến máy chủ. Vui lòng thử lại sau.";
       }
 
+      console.error("[Login] Final error message:", errorMessage);
       setError(errorMessage);
     } finally {
       setLoading(false);
