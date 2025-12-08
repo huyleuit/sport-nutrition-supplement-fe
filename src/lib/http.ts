@@ -63,10 +63,13 @@ const request = async <Response>(
     [key: string]: string;
   } =
     body instanceof FormData
-      ? {}
+      ? {
+          "ngrok-skip-browser-warning": "true",
+        }
       : {
           "Content-Type": "application/json",
           Accept: "application/json",
+          "ngrok-skip-browser-warning": "true",
         };
   if (isClient()) {
     const sessionToken = localStorage.getItem("sessionToken");

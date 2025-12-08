@@ -407,11 +407,14 @@ function RewardForm({
                 name="id"
                 value={formData.id}
                 onChange={onChange}
-                disabled={editMode}
-                className="mt-1 w-full rounded-lg border p-2 disabled:bg-gray-100"
+                disabled={true}
+                className="mt-1 w-full rounded-lg border bg-gray-100 p-2 text-gray-600"
                 min="1"
                 required
               />
+              <p className="mt-1 text-xs text-gray-500">
+                {editMode ? "Không thể thay đổi ID" : "ID được tự động tạo"}
+              </p>
             </div>
             <div>
               <label className="block text-sm font-medium text-gray-700">

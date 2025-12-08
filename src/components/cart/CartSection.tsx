@@ -4,6 +4,10 @@ import { OrderAddress } from "@/components/cart/OrderAddress";
 import { OrderPaymentMethod } from "@/components/cart/OrderPaymentMethod";
 import { OrderProductCard } from "@/components/cart/OrderProductCard";
 import { OrderShippingMethod } from "@/components/cart/OrderShippingMethod";
+import {
+  VoucherInput,
+  type AppliedVoucher,
+} from "@/components/cart/VoucherInput";
 import CustomLoadingAnimation from "@/components/common/CustomLoadingAnimation";
 import { Button } from "@/components/ui/button";
 // import { useToast } from "@/hooks/use-toast";
@@ -28,6 +32,9 @@ export const CartSection = () => {
   const [note, setNote] = useState<string>("");
   const [paymentMethod, setPaymentMethod] = useState<string>("VN_PAY");
   const [shippingMethod, setShippingMethod] = useState<string>("TPHCM");
+  const [appliedVoucher, setAppliedVoucher] = useState<AppliedVoucher | null>(
+    null,
+  );
 
   useEffect(() => {
     cartApiRequests.getCartProducts().then((res) => {
@@ -42,10 +49,21 @@ export const CartSection = () => {
     }, 0);
   };
 
+  // Calculate voucher discount
+  const getVoucherDiscount = () => {
+    if (!appliedVoucher) return 0;
+    const totalPrice = getTotalPrice();
+    if (appliedVoucher.discountType === "percentage") {
+      return Math.floor((totalPrice * appliedVoucher.discountValue) / 100);
+    }
+    return Math.min(appliedVoucher.discountValue, totalPrice);
+  };
+
   const getTotalPriceAfterSale = () => {
-    return data.reduce((acc, product) => {
+    const totalPrice = data.reduce((acc, product) => {
       return acc + product.price * product.quantity;
     }, 0);
+    return Math.max(0, totalPrice - getVoucherDiscount());
   };
 
   const handleOrderButton = async () => {
@@ -233,29 +251,12 @@ export const CartSection = () => {
             "h-max w-full bg-white p-3 lg:rounded-[0.75rem] xl:w-[23.375rem]",
           )}
         >
-          <div
-            className={cn(
-              "flex cursor-pointer flex-row justify-between rounded-[0.625rem] bg-[#007AFF]/20 py-1 pl-3 pr-2",
-            )}
-          >
-            <span className={cn("text-[0.9375rem] text-[#1250DC]")}>
-              Áp dụng ưu đãi để được giảm giá
-            </span>
-            <svg
-              xmlns="http://www.w3.org/2000/svg"
-              fill="none"
-              viewBox="0 0 24 24"
-              strokeWidth={1.5}
-              stroke="#1250DC"
-              className="size-6"
-            >
-              <path
-                strokeLinecap="round"
-                strokeLinejoin="round"
-                d="m8.25 4.5 7.5 7.5-7.5 7.5"
-              />
-            </svg>
-          </div>
+          {/* Voucher Input */}
+          <VoucherInput
+            appliedVoucher={appliedVoucher}
+            onVoucherApplied={setAppliedVoucher}
+          />
+
           <div
             className={cn("mt-3 flex flex-row items-center justify-between")}
           >
@@ -264,26 +265,25 @@ export const CartSection = () => {
               {formatPrice(getTotalPrice())}
             </span>
           </div>
-          {/* <div
-            className={cn("mt-3 flex flex-row items-center justify-between")}
-          >
-            <span className={cn("text-base text-[#4a4f63]")}>
-              Giảm giá trực tiếp
-            </span>
-            <span className={cn("text-base font-medium text-[#f79009]")}>
-              -{formatPrice(getTotalPrice() - getTotalPriceAfterSale())}
-            </span>
-          </div> */}
-          <div
-            className={cn("mt-3 flex flex-row items-center justify-between")}
-          >
-            <span className={cn("text-base text-[#4a4f63]")}>
-              Giảm giá voucher
-            </span>
-            <span className={cn("text-base font-medium text-[#f79009]")}>
-              {formatPrice(0)}
-            </span>
-          </div>
+          {appliedVoucher && (
+            <div
+              className={cn("mt-3 flex flex-row items-center justify-between")}
+            >
+              <span className={cn("text-base text-[#4a4f63]")}>
+                Giảm giá voucher
+                <span className="ml-1 text-xs text-green-600">
+                  (
+                  {appliedVoucher.discountType === "percentage"
+                    ? `${appliedVoucher.discountValue}%`
+                    : formatPrice(appliedVoucher.discountValue)}
+                  )
+                </span>
+              </span>
+              <span className={cn("text-base font-medium text-[#f79009]")}>
+                -{formatPrice(getVoucherDiscount())}
+              </span>
+            </div>
+          )}
           {/* <div
             className={cn("mt-3 flex flex-row items-center justify-between")}
           >

@@ -8,6 +8,11 @@
 // API Base URL - có thể config qua env
 const API_BASE_URL = process.env.NEXT_PUBLIC_API_ENDPOINT;
 
+// Common headers for all requests (including ngrok bypass)
+const commonHeaders = {
+  "ngrok-skip-browser-warning": "true",
+};
+
 // Types
 export interface ApiResponse<T> {
   success: boolean;
@@ -68,7 +73,7 @@ export async function registerCustomer(
   try {
     const response = await fetch(`${API_BASE_URL}/api/v1/customers/register`, {
       method: "POST",
-      headers: { "Content-Type": "application/json" },
+      headers: { "Content-Type": "application/json", ...commonHeaders },
       body: JSON.stringify({ walletAddress }),
     });
     return await response.json();
@@ -87,6 +92,7 @@ export async function getCustomerInfo(
   try {
     const response = await fetch(
       `${API_BASE_URL}/api/v1/customers/${walletAddress}`,
+      { headers: commonHeaders },
     );
     return await response.json();
   } catch (error) {
@@ -104,6 +110,7 @@ export async function isCustomerRegistered(
   try {
     const response = await fetch(
       `${API_BASE_URL}/api/v1/customers/${walletAddress}/registered`,
+      { headers: commonHeaders },
     );
     const result = await response.json();
     return result.data === true;
@@ -122,6 +129,7 @@ export async function getTokenBalanceFromBackend(
   try {
     const response = await fetch(
       `${API_BASE_URL}/api/v1/customers/${walletAddress}/balance`,
+      { headers: commonHeaders },
     );
     const result = await response.json();
     return result.data || 0;
@@ -145,7 +153,7 @@ export async function issueCertificate(
   try {
     const response = await fetch(`${API_BASE_URL}/api/v1/certificates/issue`, {
       method: "POST",
-      headers: { "Content-Type": "application/json" },
+      headers: { "Content-Type": "application/json", ...commonHeaders },
       body: JSON.stringify({
         customerAddress,
         rewardId,
@@ -169,6 +177,7 @@ export async function getCustomerCertificatesFromBackend(
   try {
     const response = await fetch(
       `${API_BASE_URL}/api/v1/certificates/customer/${walletAddress}`,
+      { headers: commonHeaders },
     );
     return await response.json();
   } catch (error) {
@@ -188,7 +197,7 @@ export async function verifyCertificate(
   try {
     const response = await fetch(`${API_BASE_URL}/api/v1/certificates/verify`, {
       method: "POST",
-      headers: { "Content-Type": "application/json" },
+      headers: { "Content-Type": "application/json", ...commonHeaders },
       body: JSON.stringify({ customerAddress, voucherCode }),
     });
     return await response.json();
@@ -210,7 +219,7 @@ export async function uploadJsonToIPFS(
   try {
     const response = await fetch(`${API_BASE_URL}/api/v1/ipfs/upload/json`, {
       method: "POST",
-      headers: { "Content-Type": "application/json" },
+      headers: { "Content-Type": "application/json", ...commonHeaders },
       body: JSON.stringify({ data, name }),
     });
     return await response.json();
@@ -234,6 +243,7 @@ export async function uploadFileToIPFS(
 
     const response = await fetch(`${API_BASE_URL}/api/v1/ipfs/upload/file`, {
       method: "POST",
+      headers: commonHeaders,
       body: formData,
     });
     return await response.json();
@@ -250,7 +260,9 @@ export async function getJsonFromIPFS(
   cid: string,
 ): Promise<ApiResponse<object>> {
   try {
-    const response = await fetch(`${API_BASE_URL}/api/v1/ipfs/${cid}`);
+    const response = await fetch(`${API_BASE_URL}/api/v1/ipfs/${cid}`, {
+      headers: commonHeaders,
+    });
     return await response.json();
   } catch (error) {
     console.error("Error getting JSON from IPFS:", error);
@@ -271,10 +283,103 @@ export async function checkHealth(): Promise<
   }>
 > {
   try {
-    const response = await fetch(`${API_BASE_URL}/health`);
+    const response = await fetch(`${API_BASE_URL}/health`, {
+      headers: commonHeaders,
+    });
     return await response.json();
   } catch (error) {
     console.error("Error checking health:", error);
     return { success: false, error: "Backend not available" };
+  }
+}
+
+// ============================================
+// VOUCHER VERIFICATION & REDEMPTION
+// ============================================
+
+export interface VerifyVoucherResponse {
+  valid: boolean;
+  redeemed: boolean;
+  voucherCode: string;
+  rewardId: number;
+  customerAddress: string;
+  createdAt: string;
+  redeemedAt?: string;
+  invalidReason?: string;
+  // Extended info from reward metadata
+  rewardName?: string;
+  discountType?: string; // "percentage" | "fixed"
+  discountValue?: number;
+}
+
+/**
+ * Verify voucher code
+ * Kiểm tra mã voucher có hợp lệ không
+ *
+ * @param voucherCode - Mã voucher cần kiểm tra
+ * @param customerAddress - Địa chỉ ví của khách hàng (optional)
+ */
+export async function verifyVoucher(
+  voucherCode: string,
+  customerAddress?: string,
+): Promise<ApiResponse<VerifyVoucherResponse>> {
+  try {
+    const url = customerAddress
+      ? `${API_BASE_URL}/api/v1/certificates/${voucherCode}/verify?customerAddress=${customerAddress}`
+      : `${API_BASE_URL}/api/v1/certificates/${voucherCode}/verify`;
+
+    const response = await fetch(url, {
+      method: "POST",
+      headers: commonHeaders,
+    });
+    return await response.json();
+  } catch (error) {
+    console.error("Error verifying voucher:", error);
+    return { success: false, error: "Failed to verify voucher" };
+  }
+}
+
+/**
+ * Mark voucher as redeemed (đã sử dụng)
+ * Gọi sau khi đơn hàng hoàn thành
+ *
+ * @param voucherCode - Mã voucher đã sử dụng
+ */
+export async function markVoucherAsRedeemed(
+  voucherCode: string,
+): Promise<ApiResponse<boolean>> {
+  try {
+    const response = await fetch(
+      `${API_BASE_URL}/api/v1/certificates/${voucherCode}/redeem`,
+      {
+        method: "POST",
+        headers: commonHeaders,
+      },
+    );
+    return await response.json();
+  } catch (error) {
+    console.error("Error marking voucher as redeemed:", error);
+    return { success: false, error: "Failed to mark voucher as redeemed" };
+  }
+}
+
+/**
+ * Get voucher details including reward metadata
+ * Lấy thông tin chi tiết voucher và phần thưởng
+ *
+ * @param voucherCode - Mã voucher
+ */
+export async function getVoucherDetails(
+  voucherCode: string,
+): Promise<ApiResponse<CertificateResponse>> {
+  try {
+    const response = await fetch(
+      `${API_BASE_URL}/api/v1/certificates/voucher/${voucherCode}`,
+      { headers: commonHeaders },
+    );
+    return await response.json();
+  } catch (error) {
+    console.error("Error getting voucher details:", error);
+    return { success: false, error: "Failed to get voucher details" };
   }
 }
