@@ -519,16 +519,32 @@ export async function getRewardWithIPFS(
 
     // Get IPFS CIDs from contract
     const metadataCID = await managerContract.getRewardMetadata(rewardId);
-    const imageCID = await managerContract.getRewardImage(rewardId);
+    let imageCID = await managerContract.getRewardImage(rewardId);
+
+    // Debug logging
+    console.log(`[Reward ${rewardId}] Contract metadataCID:`, metadataCID);
+    console.log(`[Reward ${rewardId}] Contract imageCID:`, imageCID);
 
     // Fetch metadata from IPFS if CID exists
     let metadata: RewardMetadata | null = null;
     if (metadataCID && metadataCID !== "") {
       metadata = await fetchRewardMetadata(metadataCID);
+      console.log(`[Reward ${rewardId}] Fetched metadata:`, metadata);
+    }
+
+    // Fallback: if contract has no imageCID, use image_cid from metadata
+    if ((!imageCID || imageCID === "") && metadata?.image_cid) {
+      imageCID = metadata.image_cid;
+      console.log(
+        `[Reward ${rewardId}] Using image_cid from metadata:`,
+        imageCID,
+      );
     }
 
     // Get image URL
-    const imageUrl = imageCID ? getIPFSImageUrl(imageCID) : "";
+    const imageUrl =
+      imageCID && imageCID !== "" ? getIPFSImageUrl(imageCID) : "";
+    console.log(`[Reward ${rewardId}] Final imageUrl:`, imageUrl);
 
     return {
       id: rewardId,
@@ -536,7 +552,7 @@ export async function getRewardWithIPFS(
       metadata,
       imageUrl,
       metadataCID,
-      imageCID,
+      imageCID: imageCID || "",
     };
   } catch (error) {
     console.error("Error getting reward with IPFS:", error);
