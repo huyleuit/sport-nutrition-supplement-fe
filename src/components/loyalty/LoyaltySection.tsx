@@ -32,6 +32,9 @@ interface Transaction {
   blockNumber?: number;
 }
 
+// LocalStorage key for wallet connection
+const WALLET_STORAGE_KEY = "connected_wallet_address";
+
 export function LoyaltySection() {
   const [account, setAccount] = useState<string | null>(null);
   const [balance, setBalance] = useState<number>(0);
@@ -40,11 +43,21 @@ export function LoyaltySection() {
   const [isRedeeming, setIsRedeeming] = useState<string | null>(null);
   const [isLoadingHistory, setIsLoadingHistory] = useState(false);
   const [transactions, setTransactions] = useState<Transaction[]>([]);
-  const [isRegistered, setIsRegistered] = useState<boolean>(false);
-  const [backendConnected, setBackendConnected] = useState<boolean>(false);
+  const [_isRegistered, setIsRegistered] = useState<boolean>(false);
+  const [_backendConnected, setBackendConnected] = useState<boolean>(false);
   const [lastCertificate, setLastCertificate] = useState<string | null>(null);
   const [rewards, setRewards] = useState<RewardWithIPFS[]>([]);
   const [isLoadingRewards, setIsLoadingRewards] = useState(true);
+
+  // Helper to update account and localStorage
+  const updateAccount = useCallback((newAccount: string | null) => {
+    setAccount(newAccount);
+    if (newAccount) {
+      localStorage.setItem(WALLET_STORAGE_KEY, newAccount);
+    } else {
+      localStorage.removeItem(WALLET_STORAGE_KEY);
+    }
+  }, []);
 
   // Load rewards from blockchain
   const loadRewardsFromBlockchain = useCallback(async () => {
@@ -73,6 +86,52 @@ export function LoyaltySection() {
     return false;
   };
 
+  // Auto-reconnect from localStorage on mount
+  useEffect(() => {
+    const autoReconnect = async () => {
+      if (!checkMetaMaskInstalled()) return;
+
+      const savedAddress = localStorage.getItem(WALLET_STORAGE_KEY);
+      if (!savedAddress) return;
+
+      try {
+        // Check if MetaMask still has this account connected
+        const accounts = await window.ethereum!.request({
+          method: "eth_accounts",
+        });
+
+        if (accounts && accounts.length > 0) {
+          const currentAccount = accounts[0].toLowerCase();
+          // Only auto-reconnect if saved address matches current MetaMask account
+          if (savedAddress.toLowerCase() === currentAccount) {
+            setAccount(accounts[0]);
+            // Load balance
+            setIsLoadingBalance(true);
+            try {
+              const tokenBalance = await getTokenBalance(accounts[0]);
+              setBalance(tokenBalance);
+            } catch (error) {
+              console.error("Error loading balance:", error);
+            } finally {
+              setIsLoadingBalance(false);
+            }
+          } else {
+            // Account changed, clear localStorage
+            localStorage.removeItem(WALLET_STORAGE_KEY);
+          }
+        } else {
+          // No accounts connected, clear localStorage
+          localStorage.removeItem(WALLET_STORAGE_KEY);
+        }
+      } catch (error) {
+        console.error("Auto-reconnect failed:", error);
+        localStorage.removeItem(WALLET_STORAGE_KEY);
+      }
+    };
+
+    autoReconnect();
+  }, []);
+
   // Connect to MetaMask
   const connectWallet = async () => {
     if (!checkMetaMaskInstalled()) {
@@ -89,7 +148,7 @@ export function LoyaltySection() {
         method: "eth_requestAccounts",
       });
       const userAccount = accounts[0];
-      setAccount(userAccount);
+      updateAccount(userAccount);
 
       // Check if connected to correct network (Sepolia)
       const isCorrect = await isCorrectNetwork();
@@ -100,7 +159,7 @@ export function LoyaltySection() {
         if (shouldSwitch) {
           await switchToSepolia();
         } else {
-          setAccount(null);
+          updateAccount(null);
           return;
         }
       }
@@ -167,12 +226,12 @@ export function LoyaltySection() {
   };
 
   // Disconnect wallet
-  const disconnectWallet = () => {
-    setAccount(null);
+  const disconnectWallet = useCallback(() => {
+    updateAccount(null);
     setBalance(0);
     setTransactions([]);
     clearBalanceCache();
-  };
+  }, [updateAccount]);
 
   // Load transaction history from blockchain
   const loadTransactionHistory = async (userAccount: string) => {
@@ -203,7 +262,7 @@ export function LoyaltySection() {
       const handleAccountsChanged = async (accounts: string[]) => {
         if (accounts.length > 0) {
           const newAccount = accounts[0];
-          setAccount(newAccount);
+          updateAccount(newAccount);
           // Refresh balance when account changes
           setIsLoadingBalance(true);
           try {
@@ -543,11 +602,6 @@ export function LoyaltySection() {
             <h3 className={cn("text-[1.25em] font-bold text-gray-800")}>
               Phần thưởng có thể đổi
             </h3>
-            {isLoadingRewards && (
-              <span className={cn("text-[0.8em] text-gray-500")}>
-                Đang tải từ blockchain...
-              </span>
-            )}
           </div>
 
           {/* Loading state */}
@@ -861,36 +915,6 @@ export function LoyaltySection() {
 
         {/* Certificates Section - IPFS Integration */}
         {account && <CertificatesSection account={account} />}
-
-        {/* Backend Status Indicator */}
-        {account && (
-          <div
-            className={cn(
-              "rounded-[0.625em] border p-3 text-[0.85em]",
-              backendConnected
-                ? "border-green-200 bg-green-50"
-                : "border-yellow-200 bg-yellow-50",
-            )}
-          >
-            <div className="flex items-center gap-2">
-              <span
-                className={cn(
-                  "h-2 w-2 rounded-full",
-                  backendConnected ? "bg-green-500" : "bg-yellow-500",
-                )}
-              />
-              <span
-                className={
-                  backendConnected ? "text-green-700" : "text-yellow-700"
-                }
-              >
-                {backendConnected
-                  ? `Backend connected | Registered: ${isRegistered ? "✓" : "✗"}`
-                  : "Backend offline - Direct blockchain mode"}
-              </span>
-            </div>
-          </div>
-        )}
       </div>
     </Web3ErrorBoundary>
   );
