@@ -61,6 +61,47 @@ export interface IPFSUploadResponse {
   mimeType?: string;
 }
 
+// Reward types
+export interface RewardMetadata {
+  name: string;
+  description: string;
+  terms: string;
+  category: string;
+  token_cost: number;
+  image_cid?: string;
+}
+
+export interface CreateRewardRequest {
+  rewardId: number;
+  cost: number;
+  metadata: RewardMetadata;
+  imageCid?: string; // Already uploaded image CID
+}
+
+export interface CreateRewardResponse {
+  rewardId: number;
+  transactions: {
+    setRewardCost?: string;
+    setRewardMetadata?: string;
+    setRewardImage?: string;
+  };
+  ipfs: {
+    metadataCid: string;
+    metadataUrl: string;
+    imageCid?: string;
+    imageUrl?: string;
+  };
+}
+
+export interface RewardResponse {
+  rewardId: number;
+  cost: number;
+  metadataCid?: string;
+  imageCid?: string;
+  metadata?: RewardMetadata;
+  imageUrl?: string;
+}
+
 // ==================== CUSTOMER APIs ====================
 
 /**
@@ -71,7 +112,7 @@ export async function registerCustomer(
   walletAddress: string,
 ): Promise<ApiResponse<RegisterCustomerResponse>> {
   try {
-    const response = await fetch(`${API_BASE_URL}/api/v1/customers/register`, {
+    const response = await fetch(`${API_BASE_URL}/customers/register`, {
       method: "POST",
       headers: { "Content-Type": "application/json", ...commonHeaders },
       body: JSON.stringify({ walletAddress }),
@@ -90,10 +131,9 @@ export async function getCustomerInfo(
   walletAddress: string,
 ): Promise<ApiResponse<CustomerInfoResponse>> {
   try {
-    const response = await fetch(
-      `${API_BASE_URL}/api/v1/customers/${walletAddress}`,
-      { headers: commonHeaders },
-    );
+    const response = await fetch(`${API_BASE_URL}/customers/${walletAddress}`, {
+      headers: commonHeaders,
+    });
     return await response.json();
   } catch (error) {
     console.error("Error getting customer info:", error);
@@ -109,7 +149,7 @@ export async function isCustomerRegistered(
 ): Promise<boolean> {
   try {
     const response = await fetch(
-      `${API_BASE_URL}/api/v1/customers/${walletAddress}/registered`,
+      `${API_BASE_URL}/customers/${walletAddress}/registered`,
       { headers: commonHeaders },
     );
     const result = await response.json();
@@ -128,7 +168,7 @@ export async function getTokenBalanceFromBackend(
 ): Promise<number> {
   try {
     const response = await fetch(
-      `${API_BASE_URL}/api/v1/customers/${walletAddress}/balance`,
+      `${API_BASE_URL}/customers/${walletAddress}/balance`,
       { headers: commonHeaders },
     );
     const result = await response.json();
@@ -151,7 +191,7 @@ export async function issueCertificate(
   redeemTxHash: string,
 ): Promise<ApiResponse<CertificateResponse>> {
   try {
-    const response = await fetch(`${API_BASE_URL}/api/v1/certificates/issue`, {
+    const response = await fetch(`${API_BASE_URL}/certificates/issue`, {
       method: "POST",
       headers: { "Content-Type": "application/json", ...commonHeaders },
       body: JSON.stringify({
@@ -176,7 +216,7 @@ export async function getCustomerCertificatesFromBackend(
 ): Promise<ApiResponse<CertificateResponse[]>> {
   try {
     const response = await fetch(
-      `${API_BASE_URL}/api/v1/certificates/customer/${walletAddress}`,
+      `${API_BASE_URL}/certificates/customer/${walletAddress}`,
       { headers: commonHeaders },
     );
     return await response.json();
@@ -195,7 +235,7 @@ export async function verifyCertificate(
   voucherCode: string,
 ): Promise<ApiResponse<{ valid: boolean; certificate?: CertificateResponse }>> {
   try {
-    const response = await fetch(`${API_BASE_URL}/api/v1/certificates/verify`, {
+    const response = await fetch(`${API_BASE_URL}/certificates/verify`, {
       method: "POST",
       headers: { "Content-Type": "application/json", ...commonHeaders },
       body: JSON.stringify({ customerAddress, voucherCode }),
@@ -217,7 +257,7 @@ export async function uploadJsonToIPFS(
   name: string,
 ): Promise<ApiResponse<IPFSUploadResponse>> {
   try {
-    const response = await fetch(`${API_BASE_URL}/api/v1/ipfs/upload/json`, {
+    const response = await fetch(`${API_BASE_URL}/ipfs/upload/json`, {
       method: "POST",
       headers: { "Content-Type": "application/json", ...commonHeaders },
       body: JSON.stringify({ data, name }),
@@ -241,7 +281,7 @@ export async function uploadFileToIPFS(
     formData.append("file", file);
     formData.append("name", name);
 
-    const response = await fetch(`${API_BASE_URL}/api/v1/ipfs/upload/file`, {
+    const response = await fetch(`${API_BASE_URL}/ipfs/upload/file`, {
       method: "POST",
       headers: commonHeaders,
       body: formData,
@@ -260,13 +300,102 @@ export async function getJsonFromIPFS(
   cid: string,
 ): Promise<ApiResponse<object>> {
   try {
-    const response = await fetch(`${API_BASE_URL}/api/v1/ipfs/${cid}`, {
+    const response = await fetch(`${API_BASE_URL}/ipfs/${cid}`, {
       headers: commonHeaders,
     });
     return await response.json();
   } catch (error) {
     console.error("Error getting JSON from IPFS:", error);
     return { success: false, error: "Failed to get JSON from IPFS" };
+  }
+}
+
+// ==================== REWARD MANAGEMENT APIs ====================
+
+/**
+ * Tạo reward mới (Admin only - gọi qua backend)
+ * Backend sẽ dùng owner private key để ký transaction
+ */
+export async function createReward(
+  request: CreateRewardRequest,
+): Promise<ApiResponse<CreateRewardResponse>> {
+  try {
+    const response = await fetch(`${API_BASE_URL}/rewards`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json", ...commonHeaders },
+      body: JSON.stringify({
+        rewardId: request.rewardId,
+        cost: request.cost,
+        metadata: request.metadata,
+        imageCid: request.imageCid,
+      }),
+    });
+    return await response.json();
+  } catch (error) {
+    console.error("Error creating reward:", error);
+    return { success: false, error: "Failed to create reward" };
+  }
+}
+
+/**
+ * Lấy thông tin reward
+ */
+export async function getReward(
+  rewardId: number,
+): Promise<ApiResponse<RewardResponse>> {
+  try {
+    const response = await fetch(`${API_BASE_URL}/rewards/${rewardId}`, {
+      headers: commonHeaders,
+    });
+    return await response.json();
+  } catch (error) {
+    console.error("Error getting reward:", error);
+    return { success: false, error: "Failed to get reward" };
+  }
+}
+
+/**
+ * Cập nhật chi phí reward
+ */
+export async function updateRewardCost(
+  rewardId: number,
+  cost: number,
+): Promise<ApiResponse<string>> {
+  try {
+    const response = await fetch(
+      `${API_BASE_URL}/rewards/${rewardId}/cost?cost=${cost}`,
+      {
+        method: "PUT",
+        headers: commonHeaders,
+      },
+    );
+    return await response.json();
+  } catch (error) {
+    console.error("Error updating reward cost:", error);
+    return { success: false, error: "Failed to update reward cost" };
+  }
+}
+
+/**
+ * Cập nhật metadata của reward
+ */
+export async function updateRewardMetadata(
+  rewardId: number,
+  metadata: RewardMetadata,
+): Promise<ApiResponse<string>> {
+  try {
+    const response = await fetch(
+      `${API_BASE_URL}/rewards/${rewardId}/metadata`,
+      {
+        method: "PUT",
+        headers: { "Content-Type": "application/json", ...commonHeaders },
+        body: JSON.stringify(metadata),
+      },
+    );
+    return await response.json();
+  } catch (error) {
+    console.error("Error updating reward metadata:", error);
+    return { success: false, error: "Failed to update reward metadata" };
   }
 }
 
@@ -325,8 +454,8 @@ export async function verifyVoucher(
 ): Promise<ApiResponse<VerifyVoucherResponse>> {
   try {
     const url = customerAddress
-      ? `${API_BASE_URL}/api/v1/certificates/${voucherCode}/verify?customerAddress=${customerAddress}`
-      : `${API_BASE_URL}/api/v1/certificates/${voucherCode}/verify`;
+      ? `${API_BASE_URL}/certificates/${voucherCode}/verify?customerAddress=${customerAddress}`
+      : `${API_BASE_URL}/certificates/${voucherCode}/verify`;
 
     const response = await fetch(url, {
       method: "POST",
@@ -350,7 +479,7 @@ export async function markVoucherAsRedeemed(
 ): Promise<ApiResponse<boolean>> {
   try {
     const response = await fetch(
-      `${API_BASE_URL}/api/v1/certificates/${voucherCode}/redeem`,
+      `${API_BASE_URL}/certificates/${voucherCode}/redeem`,
       {
         method: "POST",
         headers: commonHeaders,
@@ -374,7 +503,7 @@ export async function getVoucherDetails(
 ): Promise<ApiResponse<CertificateResponse>> {
   try {
     const response = await fetch(
-      `${API_BASE_URL}/api/v1/certificates/voucher/${voucherCode}`,
+      `${API_BASE_URL}/certificates/voucher/${voucherCode}`,
       { headers: commonHeaders },
     );
     return await response.json();

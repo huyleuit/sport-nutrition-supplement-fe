@@ -14,17 +14,15 @@ import {
   faImage,
   faUpload,
 } from "@fortawesome/free-solid-svg-icons";
+import { getAllRewards, removeReward, type RewardWithIPFS } from "@/lib/web3";
 import {
-  getAllRewards,
-  isContractOwner,
-  setRewardCost,
-  setRewardMetadata,
-  setRewardImage,
-  removeReward,
-  type RewardWithIPFS,
-} from "@/lib/web3";
-import { uploadJsonToIPFS, uploadFileToIPFS } from "@/lib/loyaltyApi";
-import { isValidCID, type RewardMetadata } from "@/lib/ipfs";
+  uploadFileToIPFS,
+  createReward,
+  updateRewardCost,
+  updateRewardMetadata,
+  type RewardMetadata,
+} from "@/lib/loyaltyApi";
+import { isValidCID } from "@/lib/ipfs";
 
 interface RewardFormData {
   id: number;
@@ -61,7 +59,7 @@ export function RewardsAdmin() {
   }>({ type: null, message: "" });
   const [editMode, setEditMode] = useState(false);
 
-  // Connect wallet
+  // Connect wallet (không cần kiểm tra owner vì backend xử lý)
   const connectWallet = useCallback(async () => {
     if (!window.ethereum) {
       alert("Vui lòng cài đặt MetaMask!");
@@ -74,8 +72,7 @@ export function RewardsAdmin() {
       if (accounts && accounts.length > 0) {
         setWalletAddress(accounts[0]);
         setWalletConnected(true);
-        const owner = await isContractOwner();
-        setIsOwner(owner);
+        setIsOwner(true); // Backend sẽ dùng owner key để ký transaction
       }
     } catch (error) {
       console.error("Error connecting wallet:", error);
@@ -105,8 +102,7 @@ export function RewardsAdmin() {
         if (accounts && accounts.length > 0) {
           setWalletAddress(accounts[0]);
           setWalletConnected(true);
-          const owner = await isContractOwner();
-          setIsOwner(owner);
+          setIsOwner(true); // Backend sẽ dùng owner key để ký transaction
           loadRewards();
         } else {
           setIsLoading(false);
@@ -155,14 +151,14 @@ export function RewardsAdmin() {
     setShowForm(true);
   };
 
-  // Submit form
+  // Submit form - Gọi API backend thay vì smart contract trực tiếp
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setIsSubmitting(true);
     setSubmitStatus({ type: null, message: "" });
 
     try {
-      // 1. Upload metadata to IPFS
+      // Prepare metadata
       const metadata: RewardMetadata = {
         name: formData.name,
         description: formData.description,
@@ -172,26 +168,48 @@ export function RewardsAdmin() {
         image_cid: formData.imageCID,
       };
 
-      const ipfsResponse = await uploadJsonToIPFS(
-        metadata,
-        `reward-${formData.id}`,
-      );
-      if (!ipfsResponse.success || !ipfsResponse.data?.ipfsCid) {
-        throw new Error("Failed to upload metadata to IPFS");
+      if (editMode) {
+        // Update existing reward
+        console.log("[RewardAdmin] Updating reward via API...");
+
+        // Update cost
+        const costResponse = await updateRewardCost(formData.id, formData.cost);
+        console.log("[RewardAdmin] Cost update response:", costResponse);
+        if (!costResponse.success) {
+          throw new Error(costResponse.error || "Failed to update reward cost");
+        }
+
+        // Update metadata
+        const metadataResponse = await updateRewardMetadata(
+          formData.id,
+          metadata,
+        );
+        console.log(
+          "[RewardAdmin] Metadata update response:",
+          metadataResponse,
+        );
+        if (!metadataResponse.success) {
+          throw new Error(
+            metadataResponse.error || "Failed to update reward metadata",
+          );
+        }
+      } else {
+        // Create new reward via backend API
+        console.log("[RewardAdmin] Creating reward via API...");
+        const response = await createReward({
+          rewardId: formData.id,
+          cost: formData.cost,
+          metadata: metadata,
+          imageCid: formData.imageCID || undefined,
+        });
+
+        console.log("[RewardAdmin] Create response:", response);
+        if (!response.success) {
+          throw new Error(response.error || "Failed to create reward");
+        }
       }
-      const metadataCID = ipfsResponse.data.ipfsCid;
 
-      // 2. Set reward cost on blockchain
-      await setRewardCost(formData.id, formData.cost);
-
-      // 3. Set metadata CID
-      await setRewardMetadata(formData.id, metadataCID);
-
-      // 4. Set image CID if provided
-      if (formData.imageCID && isValidCID(formData.imageCID)) {
-        await setRewardImage(formData.id, formData.imageCID);
-      }
-
+      console.log("[RewardAdmin] SUCCESS!");
       setSubmitStatus({
         type: "success",
         message: editMode
@@ -204,7 +222,7 @@ export function RewardsAdmin() {
       setShowForm(false);
       setFormData(EMPTY_FORM);
     } catch (error: any) {
-      console.error("Error submitting reward:", error);
+      console.error("[RewardAdmin] ERROR:", error);
       setSubmitStatus({
         type: "error",
         message: error.message || "Có lỗi xảy ra khi lưu reward",
