@@ -1,7 +1,7 @@
 "use client";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
-import { useEffect, useState } from "react";
+import { useEffect, useState, useCallback } from "react";
 import {
   getTokenBalance,
   isCorrectNetwork,
@@ -9,8 +9,18 @@ import {
   redeemReward,
   getTransactionHistory,
   clearBalanceCache,
+  getAllRewards,
+  type RewardWithIPFS,
 } from "@/lib/web3";
+import {
+  registerCustomer,
+  isCustomerRegistered,
+  issueCertificate,
+  checkHealth,
+} from "@/lib/loyaltyApi";
 import { Web3ErrorBoundary } from "./Web3ErrorBoundary";
+import { CertificatesSection } from "./CertificatesSection";
+import { IPFSUploader } from "./IPFSUploader";
 
 // Define data types
 interface Transaction {
@@ -23,13 +33,22 @@ interface Transaction {
   blockNumber?: number;
 }
 
-interface Reward {
-  id: string;
-  title: string;
-  points: number;
-  description: string;
-  image: string;
-}
+// Fallback rewards khi chưa load được từ blockchain
+const FALLBACK_REWARDS: RewardWithIPFS[] = [
+  {
+    id: 1,
+    cost: 100,
+    metadata: {
+      name: "Voucher giảm 10%",
+      description: "Áp dụng cho đơn hàng từ 500.000đ",
+      category: "discount",
+      value_vnd: 50000,
+    },
+    imageUrl: "",
+    metadataCID: "",
+    imageCID: "",
+  },
+];
 
 export function LoyaltySection() {
   const [account, setAccount] = useState<string | null>(null);
@@ -39,37 +58,31 @@ export function LoyaltySection() {
   const [isRedeeming, setIsRedeeming] = useState<string | null>(null);
   const [isLoadingHistory, setIsLoadingHistory] = useState(false);
   const [transactions, setTransactions] = useState<Transaction[]>([]);
+  const [isRegistered, setIsRegistered] = useState<boolean>(false);
+  const [backendConnected, setBackendConnected] = useState<boolean>(false);
+  const [lastCertificate, setLastCertificate] = useState<string | null>(null);
+  const [rewards, setRewards] = useState<RewardWithIPFS[]>(FALLBACK_REWARDS);
+  const [isLoadingRewards, setIsLoadingRewards] = useState(false);
 
-  const [rewards, _setRewards] = useState<Reward[]>([
-    {
-      id: "1",
-      title: "Voucher giảm 10%",
-      points: 500,
-      description: "Áp dụng cho đơn hàng từ 500.000đ",
-      image: "🎁",
-    },
-    {
-      id: "2",
-      title: "Voucher giảm 50.000đ",
-      points: 1000,
-      description: "Áp dụng cho đơn hàng từ 1.000.000đ",
-      image: "🎉",
-    },
-    {
-      id: "3",
-      title: "Freeship toàn quốc",
-      points: 300,
-      description: "Miễn phí vận chuyển cho mọi đơn hàng",
-      image: "🚚",
-    },
-    {
-      id: "4",
-      title: "Sản phẩm miễn phí",
-      points: 2000,
-      description: "Nhận 1 sản phẩm bất kỳ dưới 200.000đ",
-      image: "🎊",
-    },
-  ]);
+  // Load rewards from blockchain
+  const loadRewardsFromBlockchain = useCallback(async () => {
+    if (!window.ethereum) return;
+
+    setIsLoadingRewards(true);
+    try {
+      const blockchainRewards = await getAllRewards(10);
+      if (blockchainRewards.length > 0) {
+        setRewards(blockchainRewards);
+        console.log("Loaded rewards from blockchain:", blockchainRewards);
+      } else {
+        console.log("No rewards found on blockchain, using fallback");
+      }
+    } catch (error) {
+      console.error("Error loading rewards from blockchain:", error);
+    } finally {
+      setIsLoadingRewards(false);
+    }
+  }, []);
 
   // Check if MetaMask is installed
   const checkMetaMaskInstalled = () => {
@@ -109,6 +122,41 @@ export function LoyaltySection() {
           setAccount(null);
           return;
         }
+      }
+
+      // Check backend connection and register customer if needed
+      try {
+        const healthResult = await checkHealth();
+        if (healthResult.success) {
+          setBackendConnected(true);
+
+          // Check if customer is already registered
+          const registered = await isCustomerRegistered(userAccount);
+          setIsRegistered(registered);
+
+          // If not registered, register the customer via backend API
+          if (!registered) {
+            console.log("Đang đăng ký customer vào hệ thống loyalty...");
+            const registerResult = await registerCustomer(userAccount);
+            if (registerResult.success) {
+              setIsRegistered(true);
+              console.log(
+                "Đăng ký thành công:",
+                registerResult.data?.transactionHash,
+              );
+            } else {
+              console.warn("Không thể đăng ký customer:", registerResult.error);
+            }
+          }
+        } else {
+          console.warn(
+            "Backend không khả dụng, sử dụng chế độ direct blockchain",
+          );
+          setBackendConnected(false);
+        }
+      } catch (backendError) {
+        console.warn("Không thể kết nối backend:", backendError);
+        setBackendConnected(false);
       }
 
       // Get token balance from smart contract
@@ -235,32 +283,41 @@ export function LoyaltySection() {
     }
   }, [account]);
 
+  // Load rewards from blockchain when MetaMask is available
+  useEffect(() => {
+    if (typeof window !== "undefined" && window.ethereum) {
+      loadRewardsFromBlockchain();
+    }
+  }, [loadRewardsFromBlockchain]);
+
   // Format wallet address
   const formatAddress = (address: string) => {
     return `${address.substring(0, 6)}...${address.substring(address.length - 4)}`;
   };
 
-  // Redeem reward
-  const handleRedeem = async (reward: Reward) => {
+  // Redeem reward - Updated to use RewardWithIPFS
+  const handleRedeem = async (reward: RewardWithIPFS) => {
     if (!account) {
       alert("Vui lòng kết nối ví trước khi đổi thưởng!");
       return;
     }
 
-    if (balance < reward.points) {
+    const rewardName = reward.metadata?.name || `Reward #${reward.id}`;
+
+    if (balance < reward.cost) {
       alert("Số điểm của bạn không đủ để đổi phần thưởng này!");
       return;
     }
 
     const confirmRedeem = window.confirm(
-      `Bạn có chắc muốn đổi ${reward.points} điểm để nhận "${reward.title}"?`,
+      `Bạn có chắc muốn đổi ${reward.cost} điểm để nhận "${rewardName}"?`,
     );
 
     if (!confirmRedeem) {
       return;
     }
 
-    setIsRedeeming(reward.id);
+    setIsRedeeming(String(reward.id));
     try {
       // Check network first
       const isCorrect = await isCorrectNetwork();
@@ -277,8 +334,26 @@ export function LoyaltySection() {
       }
 
       // Call smart contract to redeem reward
-      const rewardId = parseInt(reward.id);
+      const rewardId = reward.id;
       const txHash = await redeemReward(rewardId);
+
+      // Issue certificate via backend API (stores on blockchain + IPFS)
+      try {
+        const certResult = await issueCertificate(
+          account,
+          rewardId,
+          rewardName,
+          txHash,
+        );
+        if (certResult.success && certResult.data) {
+          setLastCertificate(certResult.data.voucherCode);
+          console.log("Certificate issued:", certResult.data);
+        } else {
+          console.warn("Could not issue certificate:", certResult.error);
+        }
+      } catch (certError) {
+        console.warn("Error issuing certificate:", certError);
+      }
 
       // Refresh balance after successful redemption
       setIsLoadingBalance(true);
@@ -295,7 +370,7 @@ export function LoyaltySection() {
       await loadTransactionHistory(account);
 
       alert(
-        `Đổi thưởng thành công! Transaction hash: ${txHash.substring(0, 10)}...`,
+        `Đổi thưởng thành công! Transaction hash: ${txHash.substring(0, 10)}...${lastCertificate ? `\nMã voucher: ${lastCertificate}` : ""}`,
       );
     } catch (error: any) {
       console.error("Error redeeming reward:", error);
@@ -316,112 +391,320 @@ export function LoyaltySection() {
   return (
     <Web3ErrorBoundary>
       <div className={cn("w-full space-y-6")}>
-      {/* Header Section - Wallet Information */}
-      <div
-        className={cn(
-          "relative overflow-hidden rounded-[0.625em] p-[1.5em]",
-          "bg-gradient-to-br from-purple-600 via-blue-600 to-indigo-700",
-        )}
-      >
-        <div className={cn("relative z-10")}>
-          <h2 className={cn("mb-[0.5em] text-[1.5em] font-bold text-white")}>
-            Ví Điện Tử & Điểm Thưởng
-          </h2>
+        {/* Header Section - Wallet Information */}
+        <div
+          className={cn(
+            "relative overflow-hidden rounded-[0.625em] p-[1.5em]",
+            "bg-gradient-to-br from-purple-600 via-blue-600 to-indigo-700",
+          )}
+        >
+          <div className={cn("relative z-10")}>
+            <h2 className={cn("mb-[0.5em] text-[1.5em] font-bold text-white")}>
+              Ví Điện Tử & Điểm Thưởng
+            </h2>
 
-          {!account ? (
-            <div className={cn("space-y-4")}>
-              <p className={cn("text-[0.9em] text-white/90")}>
-                Kết nối ví MetaMask để bắt đầu tích điểm và đổi thưởng
-              </p>
-              <Button
-                onClick={connectWallet}
-                disabled={isConnecting}
-                className={cn(
-                  "bg-white text-blue-600 hover:bg-gray-100",
-                  "text-[0.875em] font-semibold",
-                )}
-              >
-                {isConnecting ? (
-                  <span className={cn("flex items-center gap-2")}>
-                    <svg
-                      className={cn("h-[1.25em] w-[1.25em] animate-spin")}
-                      xmlns="http://www.w3.org/2000/svg"
-                      fill="none"
-                      viewBox="0 0 24 24"
-                    >
-                      <circle
-                        className="opacity-25"
-                        cx="12"
-                        cy="12"
-                        r="10"
-                        stroke="currentColor"
-                        strokeWidth="4"
-                      ></circle>
-                      <path
-                        className="opacity-75"
-                        fill="currentColor"
-                        d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"
-                      ></path>
-                    </svg>
-                    Đang kết nối...
-                  </span>
-                ) : (
-                  <span className={cn("flex items-center gap-2")}>
-                    <svg
-                      className={cn("h-[1.25em] w-[1.25em]")}
-                      viewBox="0 0 24 24"
-                      fill="currentColor"
-                    >
-                      <path d="M3.483 9.394L12 4.567l8.517 4.827-1.317 2.276L12 7.637l-7.2 4.033z" />
-                      <path d="M12 13.547l-8.517-4.827L2.166 11L12 16.433 21.834 11l-1.317-2.28z" />
-                      <path d="M12 16.433l-8.517-4.827L2.166 13.88 12 19.313l9.834-5.433-1.317-2.28z" />
-                    </svg>
-                    Kết nối MetaMask
-                  </span>
-                )}
-              </Button>
-            </div>
-          ) : (
-            <div className={cn("space-y-4")}>
-              <div
-                className={cn(
-                  "flex flex-col gap-4 md:flex-row md:items-center md:justify-between",
-                )}
-              >
-                <div>
-                  <p className={cn("text-[0.8em] text-white/80")}>Địa chỉ ví</p>
-                  <p
-                    className={cn(
-                      "font-mono text-[1em] font-semibold text-white",
-                    )}
-                  >
-                    {formatAddress(account)}
-                  </p>
-                </div>
+            {!account ? (
+              <div className={cn("space-y-4")}>
+                <p className={cn("text-[0.9em] text-white/90")}>
+                  Kết nối ví MetaMask để bắt đầu tích điểm và đổi thưởng
+                </p>
                 <Button
-                  onClick={disconnectWallet}
-                  variant="outline"
+                  onClick={connectWallet}
+                  disabled={isConnecting}
                   className={cn(
-                    "border-white/30 bg-white/10 text-white hover:bg-white/20",
-                    "text-[0.875em]",
+                    "bg-white text-blue-600 hover:bg-gray-100",
+                    "text-[0.875em] font-semibold",
                   )}
                 >
-                  Ngắt kết nối
+                  {isConnecting ? (
+                    <span className={cn("flex items-center gap-2")}>
+                      <svg
+                        className={cn("h-[1.25em] w-[1.25em] animate-spin")}
+                        xmlns="http://www.w3.org/2000/svg"
+                        fill="none"
+                        viewBox="0 0 24 24"
+                      >
+                        <circle
+                          className="opacity-25"
+                          cx="12"
+                          cy="12"
+                          r="10"
+                          stroke="currentColor"
+                          strokeWidth="4"
+                        ></circle>
+                        <path
+                          className="opacity-75"
+                          fill="currentColor"
+                          d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"
+                        ></path>
+                      </svg>
+                      Đang kết nối...
+                    </span>
+                  ) : (
+                    <span className={cn("flex items-center gap-2")}>
+                      <svg
+                        className={cn("h-[1.25em] w-[1.25em]")}
+                        viewBox="0 0 24 24"
+                        fill="currentColor"
+                      >
+                        <path d="M3.483 9.394L12 4.567l8.517 4.827-1.317 2.276L12 7.637l-7.2 4.033z" />
+                        <path d="M12 13.547l-8.517-4.827L2.166 11L12 16.433 21.834 11l-1.317-2.28z" />
+                        <path d="M12 16.433l-8.517-4.827L2.166 13.88 12 19.313l9.834-5.433-1.317-2.28z" />
+                      </svg>
+                      Kết nối MetaMask
+                    </span>
+                  )}
                 </Button>
               </div>
+            ) : (
+              <div className={cn("space-y-4")}>
+                <div
+                  className={cn(
+                    "flex flex-col gap-4 md:flex-row md:items-center md:justify-between",
+                  )}
+                >
+                  <div>
+                    <p className={cn("text-[0.8em] text-white/80")}>
+                      Địa chỉ ví
+                    </p>
+                    <p
+                      className={cn(
+                        "font-mono text-[1em] font-semibold text-white",
+                      )}
+                    >
+                      {formatAddress(account)}
+                    </p>
+                  </div>
+                  <Button
+                    onClick={disconnectWallet}
+                    variant="outline"
+                    className={cn(
+                      "border-white/30 bg-white/10 text-white hover:bg-white/20",
+                      "text-[0.875em]",
+                    )}
+                  >
+                    Ngắt kết nối
+                  </Button>
+                </div>
 
-              <div
-                className={cn(
-                  "rounded-[0.5em] bg-white/10 p-[1.25em] backdrop-blur-sm",
-                )}
+                <div
+                  className={cn(
+                    "rounded-[0.5em] bg-white/10 p-[1.25em] backdrop-blur-sm",
+                  )}
+                >
+                  <p className={cn("text-[0.8em] text-white/80")}>
+                    Số điểm hiện có
+                  </p>
+                  {isLoadingBalance ? (
+                    <div className={cn("flex items-center gap-2")}>
+                      <svg
+                        className={cn(
+                          "h-[1.5em] w-[1.5em] animate-spin text-white",
+                        )}
+                        xmlns="http://www.w3.org/2000/svg"
+                        fill="none"
+                        viewBox="0 0 24 24"
+                      >
+                        <circle
+                          className="opacity-25"
+                          cx="12"
+                          cy="12"
+                          r="10"
+                          stroke="currentColor"
+                          strokeWidth="4"
+                        ></circle>
+                        <path
+                          className="opacity-75"
+                          fill="currentColor"
+                          d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"
+                        ></path>
+                      </svg>
+                      <span className={cn("text-[1em] text-white/80")}>
+                        Đang tải...
+                      </span>
+                    </div>
+                  ) : (
+                    <p
+                      className={cn(
+                        "text-[2.5em] font-bold text-white",
+                        "flex items-center gap-2",
+                      )}
+                    >
+                      {balance.toLocaleString()}
+                      <span className={cn("text-[0.4em] text-white/80")}>
+                        điểm
+                      </span>
+                    </p>
+                  )}
+                </div>
+              </div>
+            )}
+          </div>
+
+          {/* Decorative elements */}
+          <div
+            className={cn(
+              "absolute -right-[2em] -top-[2em] h-[8em] w-[8em]",
+              "rounded-full bg-white/10 blur-3xl",
+            )}
+          />
+          <div
+            className={cn(
+              "absolute -bottom-[3em] -left-[3em] h-[10em] w-[10em]",
+              "rounded-full bg-white/10 blur-3xl",
+            )}
+          />
+        </div>
+
+        {/* Available Rewards - Loaded from Blockchain */}
+        <div className={cn("rounded-[0.625em] bg-white p-[1.5em]")}>
+          <div className={cn("mb-[1em] flex items-center justify-between")}>
+            <h3 className={cn("text-[1.25em] font-bold text-gray-800")}>
+              Phần thưởng có thể đổi
+            </h3>
+            {isLoadingRewards && (
+              <span className={cn("text-[0.8em] text-gray-500")}>
+                Đang tải từ blockchain...
+              </span>
+            )}
+          </div>
+          <div className={cn("grid gap-4 md:grid-cols-2")}>
+            {rewards.map((reward) => {
+              const rewardName =
+                reward.metadata?.name || `Reward #${reward.id}`;
+              const rewardDesc =
+                reward.metadata?.description || "Phần thưởng từ blockchain";
+              const rewardIcon = reward.imageUrl ? null : "🎁";
+
+              return (
+                <div
+                  key={reward.id}
+                  className={cn(
+                    "rounded-[0.5em] border border-gray-200 p-[1em]",
+                    "transition-all hover:shadow-md",
+                  )}
+                >
+                  <div className={cn("flex items-start gap-3")}>
+                    <div
+                      className={cn(
+                        "flex h-[3em] w-[3em] items-center justify-center overflow-hidden",
+                        "rounded-[0.5em] bg-gradient-to-br from-purple-100 to-blue-100",
+                        "text-[1.5em]",
+                      )}
+                    >
+                      {reward.imageUrl ? (
+                        <img
+                          src={reward.imageUrl}
+                          alt={rewardName}
+                          className={cn("h-full w-full object-cover")}
+                        />
+                      ) : (
+                        rewardIcon
+                      )}
+                    </div>
+                    <div className={cn("flex-1")}>
+                      <h4
+                        className={cn("text-[1em] font-semibold text-gray-800")}
+                      >
+                        {rewardName}
+                      </h4>
+                      <p
+                        className={cn(
+                          "mt-[0.25em] text-[0.85em] text-gray-600",
+                        )}
+                      >
+                        {rewardDesc}
+                      </p>
+                      {reward.metadataCID && (
+                        <p
+                          className={cn(
+                            "mt-[0.25em] text-[0.7em] text-blue-500",
+                          )}
+                        >
+                          IPFS: {reward.metadataCID.substring(0, 12)}...
+                        </p>
+                      )}
+                      <div
+                        className={cn(
+                          "mt-[0.75em] flex items-center justify-between",
+                        )}
+                      >
+                        <span
+                          className={cn(
+                            "text-[0.9em] font-bold text-purple-600",
+                          )}
+                        >
+                          {reward.cost.toLocaleString()} điểm
+                        </span>
+                        <Button
+                          onClick={() => handleRedeem(reward)}
+                          disabled={
+                            !account ||
+                            balance < reward.cost ||
+                            isRedeeming === String(reward.id)
+                          }
+                          size="sm"
+                          className={cn(
+                            "bg-gradient-to-r from-purple-600 to-blue-600",
+                            "text-[0.8em] font-semibold",
+                            "disabled:from-gray-300 disabled:to-gray-400",
+                          )}
+                        >
+                          {isRedeeming === String(reward.id) ? (
+                            <span className={cn("flex items-center gap-2")}>
+                              <svg
+                                className={cn("h-[1em] w-[1em] animate-spin")}
+                                xmlns="http://www.w3.org/2000/svg"
+                                fill="none"
+                                viewBox="0 0 24 24"
+                              >
+                                <circle
+                                  className="opacity-25"
+                                  cx="12"
+                                  cy="12"
+                                  r="10"
+                                  stroke="currentColor"
+                                  strokeWidth="4"
+                                ></circle>
+                                <path
+                                  className="opacity-75"
+                                  fill="currentColor"
+                                  d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"
+                                ></path>
+                              </svg>
+                              Đang xử lý...
+                            </span>
+                          ) : (
+                            "Đổi ngay"
+                          )}
+                        </Button>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        </div>
+
+        {/* Transaction History */}
+        <div className={cn("rounded-[0.625em] bg-white p-[1.5em]")}>
+          <div className={cn("mb-[1em] flex items-center justify-between")}>
+            <h3 className={cn("text-[1.25em] font-bold text-gray-800")}>
+              Lịch sử giao dịch
+            </h3>
+            {account && (
+              <Button
+                onClick={() => loadTransactionHistory(account)}
+                disabled={isLoadingHistory}
+                size="sm"
+                variant="outline"
+                className={cn("text-[0.8em]")}
               >
-                <p className={cn("text-[0.8em] text-white/80")}>
-                  Số điểm hiện có
-                </p>
-                {isLoadingBalance ? (
-                  <div className={cn("flex items-center gap-2")}>
+                {isLoadingHistory ? (
+                  <span className={cn("flex items-center gap-2")}>
                     <svg
-                      className={cn("h-[1.5em] w-[1.5em] animate-spin text-white")}
+                      className={cn("h-[1em] w-[1em] animate-spin")}
                       xmlns="http://www.w3.org/2000/svg"
                       fill="none"
                       viewBox="0 0 24 24"
@@ -440,337 +723,155 @@ export function LoyaltySection() {
                         d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"
                       ></path>
                     </svg>
-                    <span className={cn("text-[1em] text-white/80")}>
-                      Đang tải...
-                    </span>
-                  </div>
+                    Đang tải...
+                  </span>
                 ) : (
-                  <p
-                    className={cn(
-                      "text-[2.5em] font-bold text-white",
-                      "flex items-center gap-2",
-                    )}
-                  >
-                    {balance.toLocaleString()}
-                    <span className={cn("text-[0.4em] text-white/80")}>
-                      điểm
-                    </span>
-                  </p>
+                  "Làm mới"
                 )}
-              </div>
-            </div>
-          )}
-        </div>
-
-        {/* Decorative elements */}
-        <div
-          className={cn(
-            "absolute -right-[2em] -top-[2em] h-[8em] w-[8em]",
-            "rounded-full bg-white/10 blur-3xl",
-          )}
-        />
-        <div
-          className={cn(
-            "absolute -bottom-[3em] -left-[3em] h-[10em] w-[10em]",
-            "rounded-full bg-white/10 blur-3xl",
-          )}
-        />
-      </div>
-
-      {/* Available Rewards */}
-      <div className={cn("rounded-[0.625em] bg-white p-[1.5em]")}>
-        <h3 className={cn("mb-[1em] text-[1.25em] font-bold text-gray-800")}>
-          Phần thưởng có thể đổi
-        </h3>
-        <div className={cn("grid gap-4 md:grid-cols-2")}>
-          {rewards.map((reward) => (
-            <div
-              key={reward.id}
-              className={cn(
-                "rounded-[0.5em] border border-gray-200 p-[1em]",
-                "transition-all hover:shadow-md",
-              )}
-            >
-              <div className={cn("flex items-start gap-3")}>
-                <div
-                  className={cn(
-                    "flex h-[3em] w-[3em] items-center justify-center",
-                    "rounded-[0.5em] bg-gradient-to-br from-purple-100 to-blue-100",
-                    "text-[1.5em]",
-                  )}
-                >
-                  {reward.image}
-                </div>
-                <div className={cn("flex-1")}>
-                  <h4 className={cn("text-[1em] font-semibold text-gray-800")}>
-                    {reward.title}
-                  </h4>
-                  <p className={cn("mt-[0.25em] text-[0.85em] text-gray-600")}>
-                    {reward.description}
-                  </p>
-                  <div
-                    className={cn(
-                      "mt-[0.75em] flex items-center justify-between",
-                    )}
-                  >
-                    <span
-                      className={cn("text-[0.9em] font-bold text-purple-600")}
-                    >
-                      {reward.points.toLocaleString()} điểm
-                    </span>
-                    <Button
-                      onClick={() => handleRedeem(reward)}
-                      disabled={
-                        !account ||
-                        balance < reward.points ||
-                        isRedeeming === reward.id
-                      }
-                      size="sm"
-                      className={cn(
-                        "bg-gradient-to-r from-purple-600 to-blue-600",
-                        "text-[0.8em] font-semibold",
-                        "disabled:from-gray-300 disabled:to-gray-400",
-                      )}
-                    >
-                      {isRedeeming === reward.id ? (
-                        <span className={cn("flex items-center gap-2")}>
-                          <svg
-                            className={cn("h-[1em] w-[1em] animate-spin")}
-                            xmlns="http://www.w3.org/2000/svg"
-                            fill="none"
-                            viewBox="0 0 24 24"
-                          >
-                            <circle
-                              className="opacity-25"
-                              cx="12"
-                              cy="12"
-                              r="10"
-                              stroke="currentColor"
-                              strokeWidth="4"
-                            ></circle>
-                            <path
-                              className="opacity-75"
-                              fill="currentColor"
-                              d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"
-                            ></path>
-                          </svg>
-                          Đang xử lý...
-                        </span>
-                      ) : (
-                        "Đổi ngay"
-                      )}
-                    </Button>
-                  </div>
-                </div>
-              </div>
-            </div>
-          ))}
-        </div>
-      </div>
-
-      {/* Transaction History */}
-      <div className={cn("rounded-[0.625em] bg-white p-[1.5em]")}>
-        <div
-          className={cn("mb-[1em] flex items-center justify-between")}
-        >
-          <h3 className={cn("text-[1.25em] font-bold text-gray-800")}>
-            Lịch sử giao dịch
-          </h3>
-          {account && (
-            <Button
-              onClick={() => loadTransactionHistory(account)}
-              disabled={isLoadingHistory}
-              size="sm"
-              variant="outline"
-              className={cn("text-[0.8em]")}
-            >
-              {isLoadingHistory ? (
-                <span className={cn("flex items-center gap-2")}>
-                  <svg
-                    className={cn("h-[1em] w-[1em] animate-spin")}
-                    xmlns="http://www.w3.org/2000/svg"
-                    fill="none"
-                    viewBox="0 0 24 24"
-                  >
-                    <circle
-                      className="opacity-25"
-                      cx="12"
-                      cy="12"
-                      r="10"
-                      stroke="currentColor"
-                      strokeWidth="4"
-                    ></circle>
-                    <path
-                      className="opacity-75"
-                      fill="currentColor"
-                      d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"
-                    ></path>
-                  </svg>
-                  Đang tải...
-                </span>
-              ) : (
-                "Làm mới"
-              )}
-            </Button>
-          )}
-        </div>
-        {isLoadingHistory && transactions.length === 0 ? (
-          <div className={cn("flex items-center justify-center py-8")}>
-            <svg
-              className={cn("h-[2em] w-[2em] animate-spin text-gray-400")}
-              xmlns="http://www.w3.org/2000/svg"
-              fill="none"
-              viewBox="0 0 24 24"
-            >
-              <circle
-                className="opacity-25"
-                cx="12"
-                cy="12"
-                r="10"
-                stroke="currentColor"
-                strokeWidth="4"
-              ></circle>
-              <path
-                className="opacity-75"
-                fill="currentColor"
-                d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"
-              ></path>
-            </svg>
+              </Button>
+            )}
           </div>
-        ) : transactions.length === 0 ? (
-          <p className={cn("text-center text-[0.9em] text-gray-500")}>
-            Chưa có giao dịch nào
-          </p>
-        ) : (
-          <div className={cn("space-y-3")}>
-            {transactions.map((transaction) => (
-              <div
-                key={transaction.id}
-                className={cn(
-                  "flex items-center justify-between",
-                  "rounded-[0.5em] border border-gray-200 p-[1em]",
-                  "transition-all hover:bg-gray-50",
-                )}
+          {isLoadingHistory && transactions.length === 0 ? (
+            <div className={cn("flex items-center justify-center py-8")}>
+              <svg
+                className={cn("h-[2em] w-[2em] animate-spin text-gray-400")}
+                xmlns="http://www.w3.org/2000/svg"
+                fill="none"
+                viewBox="0 0 24 24"
               >
-                <div className={cn("flex items-center gap-3")}>
-                  <div
-                    className={cn(
-                      "flex h-[2.5em] w-[2.5em] items-center justify-center",
-                      "rounded-full",
-                      transaction.type === "earn"
-                        ? "bg-green-100"
-                        : "bg-red-100",
-                    )}
-                  >
-                    {transaction.type === "earn" ? (
-                      <svg
-                        className={cn("h-[1.25em] w-[1.25em] text-green-600")}
-                        fill="none"
-                        viewBox="0 0 24 24"
-                        stroke="currentColor"
-                      >
-                        <path
-                          strokeLinecap="round"
-                          strokeLinejoin="round"
-                          strokeWidth={2}
-                          d="M12 4v16m8-8H4"
-                        />
-                      </svg>
-                    ) : (
-                      <svg
-                        className={cn("h-[1.25em] w-[1.25em] text-red-600")}
-                        fill="none"
-                        viewBox="0 0 24 24"
-                        stroke="currentColor"
-                      >
-                        <path
-                          strokeLinecap="round"
-                          strokeLinejoin="round"
-                          strokeWidth={2}
-                          d="M20 12H4"
-                        />
-                      </svg>
-                    )}
-                  </div>
-                  <div>
-                    <p className={cn("text-[0.9em] font-medium text-gray-800")}>
-                      {transaction.description}
-                    </p>
-                    <p className={cn("text-[0.8em] text-gray-500")}>
-                      {new Date(transaction.date).toLocaleDateString("vi-VN")}
-                    </p>
-                  </div>
-                </div>
+                <circle
+                  className="opacity-25"
+                  cx="12"
+                  cy="12"
+                  r="10"
+                  stroke="currentColor"
+                  strokeWidth="4"
+                ></circle>
+                <path
+                  className="opacity-75"
+                  fill="currentColor"
+                  d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"
+                ></path>
+              </svg>
+            </div>
+          ) : transactions.length === 0 ? (
+            <p className={cn("text-center text-[0.9em] text-gray-500")}>
+              Chưa có giao dịch nào
+            </p>
+          ) : (
+            <div className={cn("space-y-3")}>
+              {transactions.map((transaction) => (
                 <div
+                  key={transaction.id}
                   className={cn(
-                    "text-[1em] font-bold",
-                    transaction.type === "earn"
-                      ? "text-green-600"
-                      : "text-red-600",
+                    "flex items-center justify-between",
+                    "rounded-[0.5em] border border-gray-200 p-[1em]",
+                    "transition-all hover:bg-gray-50",
                   )}
                 >
-                  {transaction.type === "earn" ? "+" : ""}
-                  {transaction.amount.toLocaleString()} điểm
+                  <div className={cn("flex items-center gap-3")}>
+                    <div
+                      className={cn(
+                        "flex h-[2.5em] w-[2.5em] items-center justify-center",
+                        "rounded-full",
+                        transaction.type === "earn"
+                          ? "bg-green-100"
+                          : "bg-red-100",
+                      )}
+                    >
+                      {transaction.type === "earn" ? (
+                        <svg
+                          className={cn("h-[1.25em] w-[1.25em] text-green-600")}
+                          fill="none"
+                          viewBox="0 0 24 24"
+                          stroke="currentColor"
+                        >
+                          <path
+                            strokeLinecap="round"
+                            strokeLinejoin="round"
+                            strokeWidth={2}
+                            d="M12 4v16m8-8H4"
+                          />
+                        </svg>
+                      ) : (
+                        <svg
+                          className={cn("h-[1.25em] w-[1.25em] text-red-600")}
+                          fill="none"
+                          viewBox="0 0 24 24"
+                          stroke="currentColor"
+                        >
+                          <path
+                            strokeLinecap="round"
+                            strokeLinejoin="round"
+                            strokeWidth={2}
+                            d="M20 12H4"
+                          />
+                        </svg>
+                      )}
+                    </div>
+                    <div>
+                      <p
+                        className={cn("text-[0.9em] font-medium text-gray-800")}
+                      >
+                        {transaction.description}
+                      </p>
+                      <p className={cn("text-[0.8em] text-gray-500")}>
+                        {new Date(transaction.date).toLocaleDateString("vi-VN")}
+                      </p>
+                    </div>
+                  </div>
+                  <div
+                    className={cn(
+                      "text-[1em] font-bold",
+                      transaction.type === "earn"
+                        ? "text-green-600"
+                        : "text-red-600",
+                    )}
+                  >
+                    {transaction.type === "earn" ? "+" : ""}
+                    {transaction.amount.toLocaleString()} điểm
+                  </div>
                 </div>
-              </div>
-            ))}
+              ))}
+            </div>
+          )}
+        </div>
+
+        {/* Certificates Section - IPFS Integration */}
+        {account && <CertificatesSection account={account} />}
+
+        {/* IPFS Uploader Section */}
+        {account && <IPFSUploader account={account} />}
+
+        {/* Backend Status Indicator */}
+        {account && (
+          <div
+            className={cn(
+              "rounded-[0.625em] border p-3 text-[0.85em]",
+              backendConnected
+                ? "border-green-200 bg-green-50"
+                : "border-yellow-200 bg-yellow-50",
+            )}
+          >
+            <div className="flex items-center gap-2">
+              <span
+                className={cn(
+                  "h-2 w-2 rounded-full",
+                  backendConnected ? "bg-green-500" : "bg-yellow-500",
+                )}
+              />
+              <span
+                className={
+                  backendConnected ? "text-green-700" : "text-yellow-700"
+                }
+              >
+                {backendConnected
+                  ? `Backend connected | Registered: ${isRegistered ? "✓" : "✗"}`
+                  : "Backend offline - Direct blockchain mode"}
+              </span>
+            </div>
           </div>
         )}
-      </div>
-
-      {/* User Guide */}
-      <div
-        className={cn(
-          "rounded-[0.625em] border border-blue-200 bg-blue-50 p-[1.5em]",
-        )}
-      >
-        <h3
-          className={cn(
-            "mb-[1em] flex items-center gap-2 text-[1.1em] font-bold text-blue-800",
-          )}
-        >
-          <svg
-            className={cn("h-[1.25em] w-[1.25em]")}
-            fill="none"
-            viewBox="0 0 24 24"
-            stroke="currentColor"
-          >
-            <path
-              strokeLinecap="round"
-              strokeLinejoin="round"
-              strokeWidth={2}
-              d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"
-            />
-          </svg>
-          Hướng dẫn sử dụng
-        </h3>
-        <ul className={cn("space-y-2 text-[0.9em] text-blue-900")}>
-          <li className={cn("flex gap-2")}>
-            <span>1.</span>
-            <span>Cài đặt ví MetaMask nếu chưa có (truy cập metamask.io)</span>
-          </li>
-          <li className={cn("flex gap-2")}>
-            <span>2.</span>
-            <span>Nhấn nút "Kết nối MetaMask" và cho phép kết nối</span>
-          </li>
-          <li className={cn("flex gap-2")}>
-            <span>3.</span>
-            <span>
-              Tích điểm bằng cách mua hàng, đánh giá sản phẩm, giới thiệu bạn bè
-            </span>
-          </li>
-          <li className={cn("flex gap-2")}>
-            <span>4.</span>
-            <span>Sử dụng điểm để đổi các phần thưởng hấp dẫn</span>
-          </li>
-          <li className={cn("flex gap-2")}>
-            <span>5.</span>
-            <span>
-              Theo dõi lịch sử giao dịch để quản lý điểm thưởng của bạn
-            </span>
-          </li>
-        </ul>
-      </div>
       </div>
     </Web3ErrorBoundary>
   );

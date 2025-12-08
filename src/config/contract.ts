@@ -174,5 +174,147 @@ export const CONTRACT_CONFIG = {
       ],
       type: "function",
     },
+    // IPFS Functions
+    {
+      constant: true,
+      inputs: [
+        {
+          name: "_reward_id",
+          type: "uint256",
+        },
+      ],
+      name: "getRewardMetadata",
+      outputs: [
+        {
+          name: "",
+          type: "string",
+        },
+      ],
+      type: "function",
+    },
+    {
+      constant: true,
+      inputs: [
+        {
+          name: "_reward_id",
+          type: "uint256",
+        },
+      ],
+      name: "getRewardImage",
+      outputs: [
+        {
+          name: "",
+          type: "string",
+        },
+      ],
+      type: "function",
+    },
+    {
+      constant: true,
+      inputs: [
+        {
+          name: "_customer",
+          type: "address",
+        },
+      ],
+      name: "getCustomerCertificates",
+      outputs: [
+        {
+          name: "",
+          type: "string[]",
+        },
+      ],
+      type: "function",
+    },
+    {
+      constant: true,
+      inputs: [
+        {
+          name: "_customer",
+          type: "address",
+        },
+      ],
+      name: "getCertificateCount",
+      outputs: [
+        {
+          name: "",
+          type: "uint256",
+        },
+      ],
+      type: "function",
+    },
+    // Admin Write Functions
+    {
+      constant: false,
+      inputs: [
+        {
+          name: "_reward_id",
+          type: "uint256",
+        },
+        {
+          name: "_cost",
+          type: "uint256",
+        },
+      ],
+      name: "setRewardCost",
+      outputs: [],
+      type: "function",
+    },
+    {
+      constant: false,
+      inputs: [
+        {
+          name: "_reward_id",
+          type: "uint256",
+        },
+        {
+          name: "_ipfs_cid",
+          type: "string",
+        },
+      ],
+      name: "setRewardMetadata",
+      outputs: [],
+      type: "function",
+    },
+    {
+      constant: false,
+      inputs: [
+        {
+          name: "_reward_id",
+          type: "uint256",
+        },
+        {
+          name: "_ipfs_cid",
+          type: "string",
+        },
+      ],
+      name: "setRewardImage",
+      outputs: [],
+      type: "function",
+    },
+    {
+      constant: false,
+      inputs: [
+        {
+          name: "_reward_id",
+          type: "uint256",
+        },
+      ],
+      name: "removeReward",
+      outputs: [],
+      type: "function",
+    },
+    {
+      constant: true,
+      inputs: [],
+      name: "owner",
+      outputs: [
+        {
+          name: "",
+          type: "address",
+        },
+      ],
+      type: "function",
+    },
   ] as const,
 };

@@ -1,4 +1,3 @@
-export const runtime = "edge";
 import { Toaster } from "@/components/ui/toaster";
 import { inter } from "@/lib/font";
 import { cn } from "@/lib/utils";

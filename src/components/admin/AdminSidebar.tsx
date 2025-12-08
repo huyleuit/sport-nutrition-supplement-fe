@@ -4,6 +4,7 @@ import { cn } from "@/lib/utils";
 import {
   faChartLine,
   faShoppingCart,
+  faGift,
 } from "@fortawesome/free-solid-svg-icons";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
 import Image from "next/image";
@@ -20,6 +21,11 @@ const menuItems = [
     name: "Đơn hàng",
     href: "/admin/orders",
     icon: faShoppingCart,
+  },
+  {
+    name: "Rewards",
+    href: "/admin/rewards",
+    icon: faGift,
   },
 ];
 
