@@ -446,20 +446,25 @@ export interface VerifyVoucherResponse {
  * Kiểm tra mã voucher có hợp lệ không
  *
  * @param voucherCode - Mã voucher cần kiểm tra
- * @param customerAddress - Địa chỉ ví của khách hàng (optional)
+ * @param customerAddress - Địa chỉ ví của khách hàng (required)
  */
 export async function verifyVoucher(
   voucherCode: string,
   customerAddress?: string,
 ): Promise<ApiResponse<VerifyVoucherResponse>> {
   try {
-    const url = customerAddress
-      ? `${API_BASE_URL}/certificates/${voucherCode}/verify?customerAddress=${customerAddress}`
-      : `${API_BASE_URL}/certificates/${voucherCode}/verify`;
+    // Nếu không có customerAddress, không thể verify
+    if (!customerAddress) {
+      return {
+        success: false,
+        error: "Customer address is required to verify voucher",
+      };
+    }
 
-    const response = await fetch(url, {
+    const response = await fetch(`${API_BASE_URL}/certificates/verify`, {
       method: "POST",
-      headers: commonHeaders,
+      headers: { "Content-Type": "application/json", ...commonHeaders },
+      body: JSON.stringify({ customerAddress, voucherCode }),
     });
     return await response.json();
   } catch (error) {
